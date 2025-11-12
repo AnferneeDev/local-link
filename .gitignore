@@ -1,0 +1,99 @@
+# --- General ---
+# OS-specific
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# --- Node / Cache / Env ---
+# Dependency directories
+# We ignore all node_modules folders, at the root and in sub-projects
+/node_modules
+node_modules
+desktop-ui/node_modules
+backend/node_modules
+
+# Environment variables
+.env
+.env.*
+.env.*.local
+.env.local
+!.env.example
+
+# Caches
+*.tsbuildinfo
+.npm
+.eslintcache
+.cache
+.temp
+.tmp
+
+# --- Test / Coverage ---
+/coverage
+*.lcov
+.nyc_output
+lib-cov
+
+# --- IDEs and Editors ---
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# --- Project: backend (NestJS) ---
+# Compiled output
+backend/dist/
+backend/build/
+
+# --- Project: desktop-ui (Electron + Vite + React) ---
+# Compiled output
+desktop-ui/dist/
+desktop-ui/build/
+desktop-ui/.vite/
+
+# Electron-Forge / Electron-Builder output
+desktop-ui/out/
+desktop-ui/release/
+desktop-ui/.electron-builder/
+
+# --- Our App-Specific Files ---
+# SQLite Database (CRITICAL)
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# External Binaries (e.g., cloudflared)
+/resources/bin/
+
+# Final Packaged Installers
+*.exe
+*.dmg
+*.AppImage
+*.snap
+*.msi
+*.app
+.prettierrc

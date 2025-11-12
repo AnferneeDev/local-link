@@ -1,6 +1,6 @@
 {
-  "name": "electron-vite-react-shadcn-template",
-  "productName": "electron-vite-react-shadcn-template",
+  "name": "local-link",
+  "productName": "local-link",
   "version": "1.0.0",
   "description": "Electron forge + Vite + React + Shadcn UI + TypeScript Template",
   "main": ".vite/build/main.js",
