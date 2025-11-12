@@ -120,16 +120,16 @@ var hasRequiredDebug;
 function requireDebug() {
   if (hasRequiredDebug) return debug.exports;
   hasRequiredDebug = 1;
-  (function(module, exports) {
-    exports = module.exports = createDebug.debug = createDebug["default"] = createDebug;
-    exports.coerce = coerce;
-    exports.disable = disable;
-    exports.enable = enable;
-    exports.enabled = enabled;
-    exports.humanize = requireMs();
-    exports.names = [];
-    exports.skips = [];
-    exports.formatters = {};
+  (function(module, exports$1) {
+    exports$1 = module.exports = createDebug.debug = createDebug["default"] = createDebug;
+    exports$1.coerce = coerce;
+    exports$1.disable = disable;
+    exports$1.enable = enable;
+    exports$1.enabled = enabled;
+    exports$1.humanize = requireMs();
+    exports$1.names = [];
+    exports$1.skips = [];
+    exports$1.formatters = {};
     var prevTime;
     function selectColor(namespace) {
       var hash = 0, i;
@@ -137,7 +137,7 @@ function requireDebug() {
         hash = (hash << 5) - hash + namespace.charCodeAt(i);
         hash |= 0;
       }
-      return exports.colors[Math.abs(hash) % exports.colors.length];
+      return exports$1.colors[Math.abs(hash) % exports$1.colors.length];
     }
     function createDebug(namespace) {
       function debug2() {
@@ -153,7 +153,7 @@ function requireDebug() {
         for (var i = 0; i < args.length; i++) {
           args[i] = arguments[i];
         }
-        args[0] = exports.coerce(args[0]);
+        args[0] = exports$1.coerce(args[0]);
         if ("string" !== typeof args[0]) {
           args.unshift("%O");
         }
@@ -161,7 +161,7 @@ function requireDebug() {
         args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
           if (match === "%%") return match;
           index++;
-          var formatter = exports.formatters[format];
+          var formatter = exports$1.formatters[format];
           if ("function" === typeof formatter) {
             var val = args[index];
             match = formatter.call(self, val);
@@ -170,47 +170,47 @@ function requireDebug() {
           }
           return match;
         });
-        exports.formatArgs.call(self, args);
-        var logFn = debug2.log || exports.log || console.log.bind(console);
+        exports$1.formatArgs.call(self, args);
+        var logFn = debug2.log || exports$1.log || console.log.bind(console);
         logFn.apply(self, args);
       }
       debug2.namespace = namespace;
-      debug2.enabled = exports.enabled(namespace);
-      debug2.useColors = exports.useColors();
+      debug2.enabled = exports$1.enabled(namespace);
+      debug2.useColors = exports$1.useColors();
       debug2.color = selectColor(namespace);
-      if ("function" === typeof exports.init) {
-        exports.init(debug2);
+      if ("function" === typeof exports$1.init) {
+        exports$1.init(debug2);
       }
       return debug2;
     }
     function enable(namespaces) {
-      exports.save(namespaces);
-      exports.names = [];
-      exports.skips = [];
+      exports$1.save(namespaces);
+      exports$1.names = [];
+      exports$1.skips = [];
       var split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
       var len = split.length;
       for (var i = 0; i < len; i++) {
         if (!split[i]) continue;
         namespaces = split[i].replace(/\*/g, ".*?");
         if (namespaces[0] === "-") {
-          exports.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
+          exports$1.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
         } else {
-          exports.names.push(new RegExp("^" + namespaces + "$"));
+          exports$1.names.push(new RegExp("^" + namespaces + "$"));
         }
       }
     }
     function disable() {
-      exports.enable("");
+      exports$1.enable("");
     }
     function enabled(name) {
       var i, len;
-      for (i = 0, len = exports.skips.length; i < len; i++) {
-        if (exports.skips[i].test(name)) {
+      for (i = 0, len = exports$1.skips.length; i < len; i++) {
+        if (exports$1.skips[i].test(name)) {
           return false;
         }
       }
-      for (i = 0, len = exports.names.length; i < len; i++) {
-        if (exports.names[i].test(name)) {
+      for (i = 0, len = exports$1.names.length; i < len; i++) {
+        if (exports$1.names[i].test(name)) {
           return true;
         }
       }
@@ -227,15 +227,15 @@ var hasRequiredBrowser;
 function requireBrowser() {
   if (hasRequiredBrowser) return browser.exports;
   hasRequiredBrowser = 1;
-  (function(module, exports) {
-    exports = module.exports = requireDebug();
-    exports.log = log;
-    exports.formatArgs = formatArgs;
-    exports.save = save;
-    exports.load = load;
-    exports.useColors = useColors;
-    exports.storage = "undefined" != typeof chrome && "undefined" != typeof chrome.storage ? chrome.storage.local : localstorage();
-    exports.colors = [
+  (function(module, exports$1) {
+    exports$1 = module.exports = requireDebug();
+    exports$1.log = log;
+    exports$1.formatArgs = formatArgs;
+    exports$1.save = save;
+    exports$1.load = load;
+    exports$1.useColors = useColors;
+    exports$1.storage = "undefined" != typeof chrome && "undefined" != typeof chrome.storage ? chrome.storage.local : localstorage();
+    exports$1.colors = [
       "lightseagreen",
       "forestgreen",
       "goldenrod",
@@ -253,7 +253,7 @@ function requireBrowser() {
       typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // double check webkit in userAgent just in case we are in a worker
       typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
     }
-    exports.formatters.j = function(v) {
+    exports$1.formatters.j = function(v) {
       try {
         return JSON.stringify(v);
       } catch (err) {
@@ -262,7 +262,7 @@ function requireBrowser() {
     };
     function formatArgs(args) {
       var useColors2 = this.useColors;
-      args[0] = (useColors2 ? "%c" : "") + this.namespace + (useColors2 ? " %c" : " ") + args[0] + (useColors2 ? "%c " : " ") + "+" + exports.humanize(this.diff);
+      args[0] = (useColors2 ? "%c" : "") + this.namespace + (useColors2 ? " %c" : " ") + args[0] + (useColors2 ? "%c " : " ") + "+" + exports$1.humanize(this.diff);
       if (!useColors2) return;
       var c = "color: " + this.color;
       args.splice(1, 0, c, "color: inherit");
@@ -283,9 +283,9 @@ function requireBrowser() {
     function save(namespaces) {
       try {
         if (null == namespaces) {
-          exports.storage.removeItem("debug");
+          exports$1.storage.removeItem("debug");
         } else {
-          exports.storage.debug = namespaces;
+          exports$1.storage.debug = namespaces;
         }
       } catch (e) {
       }
@@ -293,7 +293,7 @@ function requireBrowser() {
     function load() {
       var r;
       try {
-        r = exports.storage.debug;
+        r = exports$1.storage.debug;
       } catch (e) {
       }
       if (!r && typeof process !== "undefined" && "env" in process) {
@@ -301,7 +301,7 @@ function requireBrowser() {
       }
       return r;
     }
-    exports.enable(load());
+    exports$1.enable(load());
     function localstorage() {
       try {
         return window.localStorage;
@@ -316,18 +316,18 @@ var hasRequiredNode;
 function requireNode() {
   if (hasRequiredNode) return node.exports;
   hasRequiredNode = 1;
-  (function(module, exports) {
+  (function(module, exports$1) {
     var tty = require$$0;
     var util = require$$1;
-    exports = module.exports = requireDebug();
-    exports.init = init;
-    exports.log = log;
-    exports.formatArgs = formatArgs;
-    exports.save = save;
-    exports.load = load;
-    exports.useColors = useColors;
-    exports.colors = [6, 2, 3, 4, 5, 1];
-    exports.inspectOpts = Object.keys(process.env).filter(function(key) {
+    exports$1 = module.exports = requireDebug();
+    exports$1.init = init;
+    exports$1.log = log;
+    exports$1.formatArgs = formatArgs;
+    exports$1.save = save;
+    exports$1.load = load;
+    exports$1.useColors = useColors;
+    exports$1.colors = [6, 2, 3, 4, 5, 1];
+    exports$1.inspectOpts = Object.keys(process.env).filter(function(key) {
       return /^debug_/i.test(key);
     }).reduce(function(obj, key) {
       var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function(_, k) {
@@ -348,15 +348,15 @@ function requireNode() {
     }
     var stream = 1 === fd ? process.stdout : 2 === fd ? process.stderr : createWritableStdioStream(fd);
     function useColors() {
-      return "colors" in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(fd);
+      return "colors" in exports$1.inspectOpts ? Boolean(exports$1.inspectOpts.colors) : tty.isatty(fd);
     }
-    exports.formatters.o = function(v) {
+    exports$1.formatters.o = function(v) {
       this.inspectOpts.colors = this.useColors;
       return util.inspect(v, this.inspectOpts).split("\n").map(function(str) {
         return str.trim();
       }).join(" ");
     };
-    exports.formatters.O = function(v) {
+    exports$1.formatters.O = function(v) {
       this.inspectOpts.colors = this.useColors;
       return util.inspect(v, this.inspectOpts);
     };
@@ -367,7 +367,7 @@ function requireNode() {
         var c = this.color;
         var prefix = "  \x1B[3" + c + ";1m" + name + " \x1B[0m";
         args[0] = prefix + args[0].split("\n").join("\n" + prefix);
-        args.push("\x1B[3" + c + "m+" + exports.humanize(this.diff) + "\x1B[0m");
+        args.push("\x1B[3" + c + "m+" + exports$1.humanize(this.diff) + "\x1B[0m");
       } else {
         args[0] = (/* @__PURE__ */ new Date()).toUTCString() + " " + name + " " + args[0];
       }
@@ -425,12 +425,12 @@ function requireNode() {
     }
     function init(debug2) {
       debug2.inspectOpts = {};
-      var keys = Object.keys(exports.inspectOpts);
+      var keys = Object.keys(exports$1.inspectOpts);
       for (var i = 0; i < keys.length; i++) {
-        debug2.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+        debug2.inspectOpts[keys[i]] = exports$1.inspectOpts[keys[i]];
       }
     }
-    exports.enable(load());
+    exports$1.enable(load());
   })(node, node.exports);
   return node.exports;
 }
@@ -486,6 +486,35 @@ function requireElectronSquirrelStartup() {
 }
 var electronSquirrelStartupExports = requireElectronSquirrelStartup();
 const started = /* @__PURE__ */ getDefaultExportFromCjs(electronSquirrelStartupExports);
+const { join } = path;
+let nestProcess = null;
+function startNestServer() {
+  console.log("Attempting to start NestJS server...");
+  const nestCommand = "node";
+  const nestAppPath = join(require$$3$1.app.getAppPath(), "../backend/dist/main.js");
+  console.log(`NestJS app path resolved to: ${nestAppPath}`);
+  nestProcess = require$$1$1.spawn(nestCommand, [nestAppPath]);
+  if (!nestProcess) {
+    console.error("Failed to spawn NestJS process.");
+    return;
+  }
+  nestProcess.stdout?.on("data", (data) => {
+    console.log(`[NestJS STDOUT]: ${data}`);
+  });
+  nestProcess.stderr?.on("data", (data) => {
+    console.error(`[NestJS STDERR]: ${data}`);
+  });
+  nestProcess.on("close", (code) => {
+    console.log(`NestJS process exited with code ${code}`);
+  });
+}
+function stopNestServer() {
+  if (nestProcess) {
+    console.log("Stopping NestJS server...");
+    nestProcess.kill();
+    nestProcess = null;
+  }
+}
 if (started) {
   require$$3$1.app.quit();
 }
@@ -494,7 +523,10 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      // --- MODIFIED ---
+      // 'path.join' was 'node:path', we just use 'join' now
+      preload: join(__dirname, "preload.js")
+      // --- END MODIFIED ---
     }
   });
   {
@@ -502,9 +534,13 @@ const createWindow = () => {
   }
   mainWindow.webContents.openDevTools();
 };
-require$$3$1.app.on("ready", createWindow);
+require$$3$1.app.on("ready", () => {
+  startNestServer();
+  createWindow();
+});
 require$$3$1.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    stopNestServer();
     require$$3$1.app.quit();
   }
 });
@@ -512,4 +548,7 @@ require$$3$1.app.on("activate", () => {
   if (require$$3$1.BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+require$$3$1.app.on("before-quit", () => {
+  stopNestServer();
 });
