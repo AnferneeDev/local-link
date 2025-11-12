@@ -67,6 +67,8 @@ lib-cov
 # Compiled output
 backend/dist/
 backend/build/
+backend/uploads
+/uploads
 
 # --- Project: desktop-ui (Electron + Vite + React) ---
 # Compiled output

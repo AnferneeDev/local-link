@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local Link</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="card">
+      <h1>Send a File</h1>
+      <p>This file will be sent directly to the host's computer.</p>
+
+      <form id="uploadForm">
+        <input type="file" id="fileInput" name="file" required />
+        <button type="submit">Send File</button>
+      </form>
+
+      <p class="status" id="statusMessage"></p>
+    </div>
+
+    <script>
+      const form = document.getElementById('uploadForm');
+      const fileInput = document.getElementById('fileInput');
+      const statusMessage = document.getElementById('statusMessage');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Stop the page from reloading
+
+        if (!fileInput.files[0]) {
+          statusMessage.textContent = 'Please select a file.';
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        statusMessage.textContent = 'Uploading...';
+        statusMessage.className = 'status uploading';
+
+        try {
+          // Send the file to the SAME server, at the /upload endpoint
+          const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error('Upload failed.');
+          }
+
+          const result = await response.json();
+          statusMessage.textContent = `Success! File "${result.filename}" sent.`;
+          statusMessage.className = 'status success';
+          form.reset(); // Clear the form
+        } catch (error) {
+          statusMessage.textContent = 'Upload failed. Please try again.';
+          statusMessage.className = 'status error';
+          console.error(error);
+        }
+      });
+    </script>
+  </body>
+</html>
