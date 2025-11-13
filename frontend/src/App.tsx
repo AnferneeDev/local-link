@@ -77,9 +77,14 @@ function App() {
   };
 
   const downloadFile = (filename: string) => {
-    // --- 4. USE API_BASE FOR DOWNLOAD ---
-    // On the phone, this becomes "http://192.168.1.5:3000/file/image.png" automatically
-    window.open(`${API_BASE}/file/${filename}`, "_blank");
+    // We create a temporary link element to trigger the download
+    // pointing to our new /download/ endpoint
+    const link = document.createElement("a");
+    link.href = `${API_BASE}/download/${filename}`;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (

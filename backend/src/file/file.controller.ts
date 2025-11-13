@@ -3,15 +3,18 @@ import {
   Post,
   UseInterceptors,
   UploadedFile,
+  Get, // <-- ADDED
+  Param, // <-- ADDED
+  Res, // <-- ADDED
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join } from 'path';
-import { FileService } from './file.service'; // --- ADDED: 1. Import the service ---
+import { FileService } from './file.service';
+import { Response } from 'express'; // <-- ADDED
 
 @Controller()
 export class FileController {
-  // --- ADDED: 2. Inject the service in the constructor ---
   constructor(private readonly fileService: FileService) {}
 
   @Post('upload')
@@ -19,7 +22,6 @@ export class FileController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: join(__dirname, '..', '..', '..', 'uploads'),
-
         filename: (req, file, cb) => {
           cb(null, file.originalname);
         },
@@ -27,17 +29,20 @@ export class FileController {
     }),
   )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
-    // --- MODIFIED: 3. Use the service to add the file ---
     const savedFile = this.fileService.addFile(file);
-    // --- END MODIFIED ---
-
-    console.log('File saved to disk and in-memory:', savedFile);
-
-    // --- MODIFIED: 4. Return the new file object ---
     return {
       message: 'File uploaded successfully',
-      file: savedFile, // Send back the object with the ID
+      file: savedFile,
     };
-    // --- END MODIFIED ---
+  }
+
+  // --- NEW DOWNLOAD ENDPOINT ---
+  @Get('download/:filename')
+  downloadFile(@Param('filename') filename: string, @Res() res: Response) {
+    // Build the correct path to the uploads folder
+    const filePath = join(__dirname, '..', '..', '..', 'uploads', filename);
+
+    // This Express method forces the browser to show the "Save As" dialog
+    return res.download(filePath);
   }
 }
