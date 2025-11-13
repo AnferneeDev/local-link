@@ -69,6 +69,8 @@ backend/dist/
 backend/build/
 backend/uploads
 /uploads
+/out
+frontend/out
 
 # --- Project: desktop-ui (Electron + Vite + React) ---
 # Compiled output
