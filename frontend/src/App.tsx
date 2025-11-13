@@ -1,12 +1,43 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
+import { io } from "socket.io-client";
+import { Download } from "lucide-react";
+
+// --- 1. DEFINE THE API BASE URL ---
+// If we are in "Dev" mode (Electron window), use localhost:3000
+// If we are in "Production" (Phone/Browser served by NestJS), use "" (relative path)
+const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
+
+// --- 2. CONNECT USING THE DYNAMIC URL ---
+const socket = io(API_BASE);
+
+interface SharedFile {
+  id: string;
+  filename: string;
+}
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [statusMessage, setStatusMessage] = useState("Upload a file to get started.");
+  const [files, setFiles] = useState<SharedFile[]>([]);
+
+  useEffect(() => {
+    socket.on("file-added", (newFile: SharedFile) => {
+      setFiles((prev) => [...prev, newFile]);
+    });
+
+    socket.on("files-cleared", () => {
+      setFiles([]);
+    });
+
+    return () => {
+      socket.off("file-added");
+      socket.off("files-cleared");
+    };
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -27,7 +58,8 @@ function App() {
     setStatusMessage("Uploading...");
 
     try {
-      const response = await fetch("http://localhost:3000/upload", {
+      // --- 3. USE API_BASE FOR UPLOAD ---
+      const response = await fetch(`${API_BASE}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -36,12 +68,18 @@ function App() {
 
       const result = await response.json();
       console.log("Upload successful:", result);
-      setStatusMessage(`✅ File uploaded! (Name: ${result.filename})`);
+      setStatusMessage(`✅ File uploaded!`);
       setSelectedFile(null);
     } catch (error) {
       console.error("Error uploading file:", error);
       setStatusMessage("❌ Upload failed. Check the console.");
     }
+  };
+
+  const downloadFile = (filename: string) => {
+    // --- 4. USE API_BASE FOR DOWNLOAD ---
+    // On the phone, this becomes "http://192.168.1.5:3000/file/image.png" automatically
+    window.open(`${API_BASE}/file/${filename}`, "_blank");
   };
 
   return (
@@ -52,7 +90,7 @@ function App() {
           <CardDescription className="text-slate-600 dark:text-slate-400">Share files directly from your computer</CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-6">
           <div className="space-y-3">
             <Label htmlFor="file-upload" className="font-medium text-slate-700 dark:text-slate-300">
               Select a file
@@ -62,6 +100,28 @@ function App() {
 
           <div className="text-center">
             <p className="text-sm text-slate-500 dark:text-slate-400 italic">{statusMessage}</p>
+          </div>
+
+          <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Label className="font-medium text-slate-700 dark:text-slate-300 mb-2 block">Available Downloads</Label>
+
+            {files.length === 0 ? (
+              <div className="text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                <p className="text-sm text-slate-400">No files shared yet</p>
+              </div>
+            ) : (
+              <ul className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                {files.map((file) => (
+                  <li key={file.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[180px]">{file.filename}</span>
+                    <Button size="sm" variant="outline" onClick={() => downloadFile(file.filename)} className="h-8 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-950">
+                      <Download className="w-3 h-3 mr-1.5" />
+                      Download
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </CardContent>
 
