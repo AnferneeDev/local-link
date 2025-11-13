@@ -13,16 +13,24 @@ import { join } from 'path';
       dest: './uploads',
     }),
 
-    // --- THIS IS THE NEW PART ---
-    // This serves the 'index.html' page
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
-      // This serves it from the root URL (e.g., localhost:3000/)
-      serveRoot: '/',
-    }),
-    // --- END OF NEW PART ---
+    // --- 1. DELETE THE OLD 'public' FOLDER BLOCK ---
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, '..', 'public'),
+    //   serveRoot: '/',
+    // }),
+    // --- END OF DELETE ---
 
-    // This is your old one for downloads
+    // --- 2. ADD THIS NEW BLOCK INSTEAD ---
+    // This serves your real React App
+    ServeStaticModule.forRoot({
+      // This path goes from 'backend/dist' up to the root,
+      // then into 'frontend/dist/renderer'
+      rootPath: join(__dirname, '..', '..', 'frontend', 'dist', 'renderer'),
+      serveRoot: '/', // Serve it at the root URL
+    }),
+    // --- END OF NEW BLOCK ---
+
+    // This is your (still needed) downloads folder
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads'),
       serveRoot: '/file/',

@@ -1,7 +1,7 @@
-// --- 1. IMPORT THE NEW MODULES ---
 import { Injectable, OnApplicationShutdown } from '@nestjs/common';
-import { promises as fs } from 'fs'; // We use 'fs.promises' for modern async/await
+import { promises as fs } from 'fs';
 import { join } from 'path';
+import { FileGateway } from './file.gateway'; // <-- 1. IMPORT GATEWAY
 
 export interface SharedFile {
   id: string;
@@ -9,13 +9,13 @@ export interface SharedFile {
   path: string;
 }
 
-// --- 2. IMPLEMENT THE 'OnApplicationShutdown' HOOK ---
 @Injectable()
 export class FileService implements OnApplicationShutdown {
   private files: SharedFile[] = [];
-
-  // --- 3. DEFINE THE UPLOADS PATH (so we can find it later) ---
   private readonly uploadsPath = join(__dirname, '..', '..', '..', 'uploads');
+
+  // --- 2. INJECT THE GATEWAY ---
+  constructor(private readonly fileGateway: FileGateway) {}
 
   addFile(file: Express.Multer.File): SharedFile {
     const newFile: SharedFile = {
@@ -25,6 +25,10 @@ export class FileService implements OnApplicationShutdown {
     };
 
     this.files.push(newFile);
+
+    // --- 3. NOTIFY EVERYONE (Browser & App) ---
+    this.fileGateway.notifyFileAdded(newFile);
+
     console.log('File added to in-memory list:', newFile);
     return newFile;
   }
@@ -33,8 +37,6 @@ export class FileService implements OnApplicationShutdown {
     return this.files;
   }
 
-  // --- 4. THIS IS THE "CLEANUP CREW" METHOD ---
-  // This code runs automatically when the app is told to shut down
   async onApplicationShutdown(_signal?: string) {
     console.log('Shutting down... Deleting all files from /uploads...');
 
@@ -46,22 +48,24 @@ export class FileService implements OnApplicationShutdown {
         return;
       }
 
-      // Create a list of delete promises
       const deletePromises = files.map((file) =>
         fs.unlink(join(this.uploadsPath, file)),
       );
 
-      // Wait for all files to be deleted
       await Promise.all(deletePromises);
+
+      // --- 4. TELL CLIENTS TO CLEAR LIST ---
+      this.fileGateway.notifyFilesCleared();
 
       console.log(`Successfully deleted ${files.length} files.`);
     } catch (error) {
-      if (error instanceof Error && 'code' in error) {
-        const systemError = error as NodeJS.ErrnoException;
-        if (systemError.code === 'ENOENT') {
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        // explicit casting for TS safety if needed, or just access property if checked
+        const code = (error as any).code;
+        if (code === 'ENOENT') {
           console.log('Uploads folder not found, nothing to delete.');
         } else {
-          console.error('Error deleting files:', systemError);
+          console.error('Error deleting files:', error);
         }
       } else {
         console.error('Unknown error during cleanup:', error);
