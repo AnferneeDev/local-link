@@ -8,15 +8,15 @@
   </head>
   <body>
     <div class="card">
-      <h1>Send a File</h1>
-      <p>This file will be sent directly to the host's computer.</p>
+      <h1>📁 Local Link</h1>
+      <p class="subtitle">Send a file directly to the host’s computer</p>
 
       <form id="uploadForm">
         <input type="file" id="fileInput" name="file" required />
-        <button type="submit">Send File</button>
+        <button type="submit">Upload File</button>
       </form>
 
-      <p class="status" id="statusMessage"></p>
+      <p class="status" id="statusMessage">Choose a file to begin.</p>
     </div>
 
     <script>
@@ -25,10 +25,11 @@
       const statusMessage = document.getElementById('statusMessage');
 
       form.addEventListener('submit', async (e) => {
-        e.preventDefault(); // Stop the page from reloading
+        e.preventDefault();
 
         if (!fileInput.files[0]) {
           statusMessage.textContent = 'Please select a file.';
+          statusMessage.className = 'status error';
           return;
         }
 
@@ -39,24 +40,20 @@
         statusMessage.className = 'status uploading';
 
         try {
-          // Send the file to the SAME server, at the /upload endpoint
           const response = await fetch('/upload', {
             method: 'POST',
             body: formData,
           });
 
-          if (!response.ok) {
-            throw new Error('Upload failed.');
-          }
+          if (!response.ok) throw new Error('Upload failed.');
 
           const result = await response.json();
-          statusMessage.textContent = `Success! File "${result.filename}" sent.`;
+          statusMessage.textContent = `✅ File "${result.filename}" uploaded successfully.`;
           statusMessage.className = 'status success';
-          form.reset(); // Clear the form
+          form.reset();
         } catch (error) {
-          statusMessage.textContent = 'Upload failed. Please try again.';
+          statusMessage.textContent = '❌ Upload failed. Please try again.';
           statusMessage.className = 'status error';
-          console.error(error);
         }
       });
     </script>

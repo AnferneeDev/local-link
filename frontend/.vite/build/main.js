@@ -523,10 +523,7 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
-      // --- MODIFIED ---
-      // 'path.join' was 'node:path', we just use 'join' now
       preload: join(__dirname, "preload.js")
-      // --- END MODIFIED ---
     }
   });
   {

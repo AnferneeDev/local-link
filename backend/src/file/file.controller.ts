@@ -6,19 +6,18 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { join } from 'path'; // <-- 1. IMPORT 'join'
+import { join } from 'path';
+import { FileService } from './file.service'; // --- ADDED: 1. Import the service ---
 
 @Controller()
 export class FileController {
+  // --- ADDED: 2. Inject the service in the constructor ---
+  constructor(private readonly fileService: FileService) {}
+
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        // --- 2. THIS IS THE FIX ---
-        // We'll build a path from the current file (__dirname)
-        // __dirname is in 'backend/dist/file'
-        // We go up 3 levels to the root 'local-link' folder
-        // Then we tell it to save in an 'uploads' folder there.
         destination: join(__dirname, '..', '..', '..', 'uploads'),
 
         filename: (req, file, cb) => {
@@ -28,12 +27,17 @@ export class FileController {
     }),
   )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
-    console.log('File saved to disk:', file);
+    // --- MODIFIED: 3. Use the service to add the file ---
+    const savedFile = this.fileService.addFile(file);
+    // --- END MODIFIED ---
 
+    console.log('File saved to disk and in-memory:', savedFile);
+
+    // --- MODIFIED: 4. Return the new file object ---
     return {
       message: 'File uploaded successfully',
-      filename: file.filename,
-      path: file.path,
+      file: savedFile, // Send back the object with the ID
     };
+    // --- END MODIFIED ---
   }
 }
