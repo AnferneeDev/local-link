@@ -1,6 +1,6 @@
 "use strict";
 const require$$3$1 = require("electron");
-const path = require("node:path");
+const node_path = require("node:path");
 const fs = require("node:fs");
 const require$$0$1 = require("path");
 const require$$1$1 = require("child_process");
@@ -451,12 +451,12 @@ var hasRequiredElectronSquirrelStartup;
 function requireElectronSquirrelStartup() {
   if (hasRequiredElectronSquirrelStartup) return electronSquirrelStartup;
   hasRequiredElectronSquirrelStartup = 1;
-  var path2 = require$$0$1;
+  var path = require$$0$1;
   var spawn = require$$1$1.spawn;
   var debug2 = requireSrc()("electron-squirrel-startup");
   var app = require$$3$1.app;
   var run = function(args, done) {
-    var updateExe = path2.resolve(path2.dirname(process.execPath), "..", "Update.exe");
+    var updateExe = path.resolve(path.dirname(process.execPath), "..", "Update.exe");
     debug2("Spawning `%s` with args `%s`", updateExe, args);
     spawn(updateExe, args, {
       detached: true
@@ -466,7 +466,7 @@ function requireElectronSquirrelStartup() {
     if (process.platform === "win32") {
       var cmd = process.argv[1];
       debug2("processing squirrel command `%s`", cmd);
-      var target = path2.basename(process.execPath);
+      var target = path.basename(process.execPath);
       if (cmd === "--squirrel-install" || cmd === "--squirrel-updated") {
         run(["--createShortcut=" + target], app.quit);
         return true;
@@ -487,12 +487,11 @@ function requireElectronSquirrelStartup() {
 }
 var electronSquirrelStartupExports = requireElectronSquirrelStartup();
 const started = /* @__PURE__ */ getDefaultExportFromCjs(electronSquirrelStartupExports);
-const { join } = path;
 let nestProcess = null;
 function startNestServer() {
   console.log("Attempting to start NestJS server...");
   const nestCommand = "node";
-  const nestAppPath = join(require$$3$1.app.getAppPath(), "../backend/dist/main.js");
+  const nestAppPath = node_path.join(require$$3$1.app.getAppPath(), "../backend/dist/main.js");
   console.log(`NestJS app path resolved to: ${nestAppPath}`);
   nestProcess = require$$1$1.spawn(nestCommand, [nestAppPath]);
   if (!nestProcess) {
@@ -517,7 +516,7 @@ function stopNestServer() {
   }
 }
 function deleteUploadsFolder() {
-  const uploadsPath = join(require$$3$1.app.getAppPath(), "../uploads");
+  const uploadsPath = node_path.join(require$$3$1.app.getAppPath(), "../uploads");
   console.log(`Attempting to delete uploads folder at: ${uploadsPath}`);
   try {
     if (fs.existsSync(uploadsPath)) {
@@ -538,9 +537,9 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: join(__dirname, "preload.js"),
+      preload: node_path.join(__dirname, "preload.js"),
+      // <-- 3. This 'join' now works
       sandbox: false
-      // Often needed for the handler to work
     }
   });
   mainWindow.webContents.setWindowOpenHandler((details) => {
