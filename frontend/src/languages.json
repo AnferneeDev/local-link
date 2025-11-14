@@ -3,12 +3,14 @@
     "description": "Share files directly from your computer",
     "selectFile": "Select a file",
     "chooseFile": "Choose File",
+    "toggleFile": "File",
+    "toggleText": "Text",
     "status": {
       "initial": "Upload a file to get started.",
       "selected": "{{filename}} selected.",
       "uploading": "Uploading...",
-      "success": "✅ File uploaded!",
-      "fail": "❌ Upload failed. Check the console."
+      "success": "✅ Item shared!",
+      "fail": "❌ Failed to share. Check the console."
     },
     "available": "Available Downloads",
     "sharedText": "Shared Text & Links",
@@ -24,12 +26,14 @@
     "description": "Comparte archivos desde tu computadora",
     "selectFile": "Selecciona un archivo",
     "chooseFile": "Elegir Archivo",
+    "toggleFile": "Archivo",
+    "toggleText": "Texto",
     "status": {
       "initial": "Sube un archivo para comenzar.",
       "selected": "{{filename}} seleccionado.",
       "uploading": "Subiendo...",
-      "success": "✅ ¡Archivo subido!",
-      "fail": "❌ Error al subir. Revisa la consola."
+      "success": "✅ ¡Item compartido!",
+      "fail": "❌ Error al compartir. Revisa la consola."
     },
     "available": "Descargas Disponibles",
     "sharedText": "Texto y Enlaces Compartidos",
