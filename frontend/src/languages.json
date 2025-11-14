@@ -1,48 +1,66 @@
 {
   "en": {
     "description": "Share files directly from your computer",
+    "connectPrompt": "Enter this URL on your other devices",
     "selectFile": "Select a file",
     "chooseFile": "Choose File",
+    "dragDrop": "Drag & drop or click to select file",
     "toggleFile": "File",
     "toggleText": "Text",
     "status": {
-      "initial": "Upload a file to get started.",
+      "initial": "",
       "selected": "{{filename}} selected.",
       "uploading": "Uploading...",
       "success": "✅ Item shared!",
       "fail": "❌ Failed to share. Check the console."
     },
+    "button": {
+      "upload": "Upload",
+      "uploading": "Uploading...",
+      "success": "Success!",
+      "fail": "Failed!",
+      "send": "Send Text",
+      "sending": "Sending...",
+      "download": "Download",
+      "downloading": "Downloading..."
+    },
     "available": "Available Downloads",
     "sharedText": "Shared Text & Links",
     "none": "No files shared yet",
     "noneText": "No text shared yet",
-    "download": "Download",
-    "upload": "Upload",
-    "sendText": "Send Text",
-    "copy": "Copy",
-    "copied": "Copied!"
+    "showQR": "Show QR",
+    "hideQR": "Hide QR"
   },
   "es": {
     "description": "Comparte archivos desde tu computadora",
+    "connectPrompt": "Ingresa esta URL en tus otros dispositivos",
     "selectFile": "Selecciona un archivo",
     "chooseFile": "Elegir Archivo",
+    "dragDrop": "Arrastra o haz clic para seleccionar",
     "toggleFile": "Archivo",
     "toggleText": "Texto",
     "status": {
-      "initial": "Sube un archivo para comenzar.",
+      "initial": "",
       "selected": "{{filename}} seleccionado.",
       "uploading": "Subiendo...",
       "success": "✅ ¡Item compartido!",
       "fail": "❌ Error al compartir. Revisa la consola."
     },
+    "button": {
+      "upload": "Subir",
+      "uploading": "Subiendo...",
+      "success": "¡Éxito!",
+      "fail": "¡Falló!",
+      "send": "Enviar Texto",
+      "sending": "Enviando...",
+      "download": "Descargar",
+      "downloading": "Descargando..."
+    },
     "available": "Descargas Disponibles",
     "sharedText": "Texto y Enlaces Compartidos",
     "none": "No hay archivos compartidos",
     "noneText": "No hay texto compartido",
-    "download": "Descargar",
-    "upload": "Subir",
-    "sendText": "Enviar Texto",
-    "copy": "Copiar",
-    "copied": "¡Copiado!"
+    "showQR": "Mostrar QR",
+    "hideQR": "Ocultar QR"
   }
 }

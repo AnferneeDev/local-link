@@ -1,6 +1,7 @@
 "use strict";
 const require$$3$1 = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const require$$0$1 = require("path");
 const require$$1$1 = require("child_process");
 const require$$0 = require("tty");
@@ -397,8 +398,8 @@ function requireNode() {
           }
           break;
         case "FILE":
-          var fs = require$$3;
-          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
+          var fs2 = require$$3;
+          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -515,6 +516,20 @@ function stopNestServer() {
     nestProcess = null;
   }
 }
+function deleteUploadsFolder() {
+  const uploadsPath = join(require$$3$1.app.getAppPath(), "../uploads");
+  console.log(`Attempting to delete uploads folder at: ${uploadsPath}`);
+  try {
+    if (fs.existsSync(uploadsPath)) {
+      fs.rmSync(uploadsPath, { recursive: true, force: true });
+      console.log("Uploads folder deleted successfully.");
+    } else {
+      console.log("Uploads folder not found, nothing to delete.");
+    }
+  } catch (error) {
+    console.error("Error deleting uploads folder:", error);
+  }
+}
 if (started) {
   require$$3$1.app.quit();
 }
@@ -523,8 +538,14 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: join(__dirname, "preload.js")
+      preload: join(__dirname, "preload.js"),
+      sandbox: false
+      // Often needed for the handler to work
     }
+  });
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    require$$3$1.shell.openExternal(details.url);
+    return { action: "deny" };
   });
   {
     mainWindow.loadURL("http://localhost:5173");
@@ -538,6 +559,7 @@ require$$3$1.app.on("ready", () => {
 require$$3$1.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     stopNestServer();
+    deleteUploadsFolder();
     require$$3$1.app.quit();
   }
 });
@@ -548,4 +570,5 @@ require$$3$1.app.on("activate", () => {
 });
 require$$3$1.app.on("before-quit", () => {
   stopNestServer();
+  deleteUploadsFolder();
 });

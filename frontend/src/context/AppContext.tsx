@@ -1,27 +1,33 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
-// --- 1. ADD MISSING IMPORTS ---
 import translations from "../languages.json";
 import { LanguageKey, SharedFile, SharedText, SharedItem } from "../lib/types";
 import { socket } from "../lib/socket";
-// Import 'getIP' and remove unused 'downloadFile'
-import { getItems, uploadFile, sendText, getIP } from "../lib/api";
-// Import helpers and rename them to avoid conflicts
-import { t as tHelper, getStatusMessage as getStatusHelper } from "../lib/translations";
+import { getItems, uploadFile, sendText, getIP, downloadFile } from "../lib/api"; // Added downloadFile back
+import { t as tHelper, getStatusMessage as getStatusHelper, tButton } from "../lib/translations"; // Added tButton
 
-// 1. Define the shape of our context
+// --- 1. NEW HELPER FUNCTION ---
+// This checks the browser's language
+const getInitialLang = (): LanguageKey => {
+  // navigator.language returns 'es-ES', 'es', 'en-US', 'en', etc.
+  const userLang = navigator.language.toLowerCase();
+  return userLang.startsWith("es") ? "es" : "en";
+};
+// --- END OF NEW FUNCTION ---
+
 interface AppContextType {
   // State
   files: SharedFile[];
   texts: SharedText[];
   lang: LanguageKey;
   mode: "file" | "text";
-  statusType: string;
+  statusType: "initial" | "selected" | "uploading-file" | "uploading-text" | "success-file" | "success-text" | "fail-file" | "fail-text";
   statusFilename: string;
   text: string;
   copiedId: string | null;
   selectedFile: File | null;
   localIP: string | null;
   fileInputRef: React.RefObject<HTMLInputElement>;
+  downloadingFileId: string | null;
 
   // State Setters
   setLang: (lang: LanguageKey) => void;
@@ -34,30 +40,47 @@ interface AppContextType {
   handleTextSendClick: () => Promise<void>;
   handleCopyClick: (text: string, id: string) => void;
   handleChooseFileClick: () => void;
+  handleDownloadClick: (file: SharedFile) => void;
 
   // Helpers
-  t: (key: Exclude<keyof (typeof translations)["en"], "status">) => string;
+  t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => string;
+  tButton: (key: keyof (typeof translations)["en"]["button"]) => string; // --- MODIFIED: Added tButton ---
   getStatusMessage: () => string;
 }
 
-// 2. Create the context
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// 3. Create the Provider
+// (useStatusReset helper function is unchanged)
+const useStatusReset = (setStatusType: React.Dispatch<React.SetStateAction<AppContextType["statusType"]>>, currentStatus: AppContextType["statusType"]) => {
+  useEffect(() => {
+    if (currentStatus.startsWith("success-") || currentStatus.startsWith("fail-")) {
+      const timer = setTimeout(() => {
+        setStatusType("initial");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStatus, setStatusType]);
+};
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [files, setFiles] = useState<SharedFile[]>([]);
   const [texts, setTexts] = useState<SharedText[]>([]);
-  const [lang, setLang] = useState<LanguageKey>("en");
-  const [statusType, setStatusType] = useState("initial");
+
+  // --- 2. MODIFIED: Use the helper function to set initial state ---
+  const [lang, setLang] = useState<LanguageKey>(getInitialLang());
+
+  const [statusType, setStatusType] = useState<AppContextType["statusType"]>("initial");
   const [statusFilename, setStatusFilename] = useState("");
   const [text, setText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"file" | "text">("file");
   const [localIP, setLocalIP] = useState<string | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
-  // --- 2. FIX 'useEffect' (getIP was missing) ---
+  useStatusReset(setStatusType, statusType);
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -67,13 +90,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setFiles(initialFiles);
         setTexts(initialTexts);
 
-        const ipData = await getIP(); // This now works
+        const ipData = await getIP();
         if (ipData.ip) setLocalIP(ipData.ip);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       }
     };
-
     fetchInitialData();
 
     socket.on("item-added", (newItem: SharedItem) => {
@@ -103,43 +125,69 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const handleUploadClick = async () => {
     if (!selectedFile) return;
-    setStatusType("uploading");
+    setStatusType("uploading-file");
     try {
       await uploadFile(selectedFile);
-      setStatusType("success");
+      setStatusType("success-file");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Error uploading file:", error);
-      setStatusType("fail");
+      setStatusType("fail-file");
     }
   };
 
   const handleTextSendClick = async () => {
     if (!text.trim()) return;
-    setStatusType("uploading");
+    setStatusType("uploading-text");
     try {
       await sendText(text);
-      setStatusType("success");
+      setStatusType("success-text");
       setText("");
     } catch (error) {
       console.error("Error sending text:", error);
-      setStatusType("fail");
+      setStatusType("fail-text");
     }
   };
 
-  const handleCopyClick = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyClick = (textToCopy: string, id: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      });
+    } else {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      } catch (e) {
+        console.error("Failed to copy", e);
+      }
+    }
   };
 
   const handleChooseFileClick = () => {
     fileInputRef.current?.click();
   };
 
-  // --- 3. FIX THE 'value' OBJECT ---
-  // It needs to use the imported helper functions
+  const handleDownloadClick = (file: SharedFile) => {
+    setDownloadingFileId(file.id);
+    downloadFile(file.filename);
+    setTimeout(() => {
+      setDownloadingFileId(null);
+    }, 3000);
+  };
+
   const value = {
     files,
     texts,
@@ -155,20 +203,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     selectedFile,
     localIP,
     fileInputRef,
+    downloadingFileId,
     handleFileChange,
     handleUploadClick,
     handleTextSendClick,
     handleCopyClick,
     handleChooseFileClick,
-    // Use the renamed 'tHelper' and 'getStatusHelper'
-    t: (key: Exclude<keyof (typeof translations)["en"], "status">) => tHelper(lang, key),
+    handleDownloadClick,
+    t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => tHelper(lang, key),
+    // --- 3. MODIFIED: Added tButton to the context value ---
+    tButton: (key: keyof (typeof translations)["en"]["button"]) => tButton(lang, key),
     getStatusMessage: () => getStatusHelper(lang, statusType, statusFilename),
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-// 4. Create the Custom Hook
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
