@@ -11,7 +11,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join } from 'path';
 import { FileService } from './file.service';
-import { Response } from 'express'; // <-- ADDED
+import type { Response } from 'express'; // <-- ADDED
 
 @Controller()
 export class FileController {
