@@ -1,4 +1,4 @@
-import { API_BASE } from "./sockets";
+import { API_BASE } from "./socket";
 
 /**
  * Uploads the selected file to the server.

@@ -3,23 +3,42 @@ import {
   Post,
   UseInterceptors,
   UploadedFile,
-  Get, // <-- ADDED
-  Param, // <-- ADDED
-  Res, // <-- ADDED
+  Get,
+  Param,
+  Res,
+  Body,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join } from 'path';
-import { FileService } from './file.service';
-import type { Response } from 'express'; // <-- ADDED
+import { FileService, SharedItem } from './file.service'; // <-- Now this import works
+import type { Response } from 'express';
+
+// DTO (Data Transfer Object) for validating text input
+class CreateTextDto {
+  text: string;
+}
 
 @Controller()
 export class FileController {
   constructor(private readonly fileService: FileService) {}
 
+  @Post('text')
+  // --- 1. FIX: REMOVED 'async' ---
+  // This fixes the "'await' expression" error
+  addText(@Body(new ValidationPipe()) body: CreateTextDto) {
+    const savedText = this.fileService.addText(body.text);
+    return {
+      message: 'Text added successfully',
+      item: savedText,
+    };
+  }
+
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
+      // 'file' (singular)
       storage: diskStorage({
         destination: join(__dirname, '..', '..', '..', 'uploads'),
         filename: (req, file, cb) => {
@@ -32,17 +51,13 @@ export class FileController {
     const savedFile = this.fileService.addFile(file);
     return {
       message: 'File uploaded successfully',
-      file: savedFile,
+      item: savedFile, // Renamed 'file' to 'item'
     };
   }
 
-  // --- NEW DOWNLOAD ENDPOINT ---
   @Get('download/:filename')
   downloadFile(@Param('filename') filename: string, @Res() res: Response) {
-    // Build the correct path to the uploads folder
     const filePath = join(__dirname, '..', '..', '..', 'uploads', filename);
-
-    // This Express method forces the browser to show the "Save As" dialog
     return res.download(filePath);
   }
 }

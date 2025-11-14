@@ -1,20 +1,19 @@
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import { SharedItem } from './file.service'; // <-- 1. IMPORT 'SharedItem'
 
-// @WebSocketGateway({ cors: true }) allows the browser to connect
 @WebSocketGateway({ cors: true })
 export class FileGateway {
   @WebSocketServer()
   server: Server;
 
-  // This is the method we'll call when a file is uploaded
-  notifyFileAdded(file: any) {
-    // Shout to everyone: "New file added! Here is the data."
-    this.server.emit('file-added', file);
+  // --- 2. RENAMED and TYPED ---
+  notifyItemAdded(item: SharedItem) {
+    this.server.emit('item-added', item); // <-- Use new event name 'item-added'
   }
 
-  // We'll call this when files are deleted
-  notifyFilesCleared() {
-    this.server.emit('files-cleared');
+  // --- 3. RENAMED ---
+  notifyItemsCleared() {
+    this.server.emit('items-cleared'); // <-- Use new event name 'items-cleared'
   }
 }
