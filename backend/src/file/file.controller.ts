@@ -12,7 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join } from 'path';
-import { FileService, SharedItem } from './file.service'; // <-- Now this import works
+import { FileService } from './file.service'; // <-- Now this import works
 import type { Response } from 'express';
 
 // DTO (Data Transfer Object) for validating text input

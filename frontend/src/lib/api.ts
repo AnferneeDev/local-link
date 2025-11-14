@@ -53,3 +53,11 @@ export const downloadFile = (filename: string) => {
   link.click();
   document.body.removeChild(link);
 };
+
+export const getIP = async () => {
+  const response = await fetch(`${API_BASE}/ip`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch IP");
+  }
+  return await response.json();
+};
