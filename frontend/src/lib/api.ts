@@ -34,6 +34,14 @@ export const sendText = async (text: string) => {
   return await response.json();
 };
 
+export const getItems = async () => {
+  const response = await fetch(`${API_BASE}/items`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch items");
+  }
+  return await response.json();
+};
+
 /**
  * Triggers a browser download for a given file.
  */

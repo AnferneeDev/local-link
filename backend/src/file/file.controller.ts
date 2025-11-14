@@ -60,4 +60,10 @@ export class FileController {
     const filePath = join(__dirname, '..', '..', '..', 'uploads', filename);
     return res.download(filePath);
   }
+
+  @Get('items')
+  getAllItems() {
+    // This just returns the list our service is already holding
+    return this.fileService.getAllItems();
+  }
 }
