@@ -2,8 +2,8 @@ import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAppContext } from "../context/AppContext";
 import { useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
-import { QrCode, ArrowDown, Globe } from "lucide-react"; // --- 1. IMPORT Globe ---
+import { QRCodeCanvas } from "qrcode.react"; // Correct import
+import { QrCode, ArrowDown, Globe } from "lucide-react"; // All icons
 
 export const AppHeader = () => {
   const { lang, setLang, t, localIP } = useAppContext();
@@ -12,23 +12,18 @@ export const AppHeader = () => {
 
   return (
     <CardHeader className="text-center space-y-2 pb-2">
-      {/* --- 2. FIX: Language Toggle with Globe and Text --- */}
+      {/* --- Language Toggle --- */}
       <div className="absolute top-4 right-4 z-10">
-        <Button
-          variant="ghost"
-          size="sm"
-          // --- FIX: 'h-7' (fixed height), 'px-2' (padding), 'text-xs' on mobile, 'text-sm' on desktop ---
-          className="h-7 px-2 text-xs md:text-sm text-slate-500 dark:text-slate-400"
-          onClick={() => setLang(lang === "en" ? "es" : "en")}
-        >
+        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs md:text-sm text-slate-500 dark:text-slate-400" onClick={() => setLang(lang === "en" ? "es" : "en")}>
           <Globe className="w-4 h-4 mr-1.5" />
-          {/* --- FIX: Text is hidden on mobile (default), and 'inline' on medium screens (md) --- */}
+          {/* Text is hidden on mobile, shown on desktop */}
           <span className="hidden md:inline">{lang === "en" ? "Español" : "English"}</span>
         </Button>
       </div>
 
-      {/* --- Title & Description (No Change) --- */}
+      {/* --- Title & Description --- */}
       <CardTitle className="text-3xl font-extrabold bg-linear-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">Local Link</CardTitle>
+      <CardDescription className="text-slate-600 dark:text-slate-400">{t("description")}</CardDescription>
 
       {/* --- IP/QR SECTION --- */}
       {url && (

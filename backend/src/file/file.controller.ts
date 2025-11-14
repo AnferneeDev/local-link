@@ -27,13 +27,18 @@ class CreateTextDto {
 export class FileController {
   constructor(private readonly fileService: FileService) {}
 
+  @Get('items')
+  getAllItems() {
+    return this.fileService.getAllItems();
+  }
+
   @Post('text')
   addText(@Body(new ValidationPipe()) body: CreateTextDto) {
     const savedText = this.fileService.addText(body.text);
     return { message: 'Text added successfully', item: savedText };
   }
 
-  // --- 3. UPDATED TO HANDLE MULTIPLE FILES ---
+  // --- 3. THIS IS THE UPDATED UPLOAD ENDPOINT ---
   @Post('upload')
   @UseInterceptors(
     // Change to 'FilesInterceptor' to accept an array
@@ -67,6 +72,4 @@ export class FileController {
     const filePath = join(__dirname, '..', '..', '..', 'uploads', filename);
     return res.download(filePath);
   }
-
-  // --- 4. The '/download-all' (zip) endpoint is completely removed ---
 }
