@@ -1,11 +1,15 @@
 import { API_BASE } from "./socket";
+import { SharedFile } from "./types"; // Import SharedFile type
 
 /**
- * Uploads the selected file to the server.
+ * Uploads one or more files to the server.
  */
-export const uploadFile = async (selectedFile: File) => {
+export const uploadFiles = async (selectedFiles: File[]) => {
   const formData = new FormData();
-  formData.append("file", selectedFile);
+  // Loop and append all files
+  for (const file of selectedFiles) {
+    formData.append("files", file); // 'files' (plural)
+  }
 
   const response = await fetch(`${API_BASE}/upload`, {
     method: "POST",
@@ -43,7 +47,7 @@ export const getItems = async () => {
 };
 
 /**
- * Triggers a browser download for a given file.
+ * Triggers a browser download for a single file.
  */
 export const downloadFile = (filename: string) => {
   const link = document.createElement("a");
@@ -52,6 +56,19 @@ export const downloadFile = (filename: string) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+/**
+ * Triggers downloads for all files, one by one.
+ */
+export const downloadAllFiles = async (files: SharedFile[], setDownloadingFileId: (id: string | null) => void) => {
+  for (const file of files) {
+    setDownloadingFileId(file.id); // Show spinner
+    downloadFile(file.filename);
+    // Wait 500ms between each download to avoid pop-up blockers
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setDownloadingFileId(null); // Hide spinner
+  }
 };
 
 export const getIP = async () => {

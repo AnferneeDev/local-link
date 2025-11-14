@@ -2,10 +2,9 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 import translations from "../languages.json";
 import { LanguageKey, SharedFile, SharedText, SharedItem } from "../lib/types";
 import { socket } from "../lib/socket";
-import { getItems, uploadFile, sendText, downloadFile, getIP } from "../lib/api";
+import { getItems, uploadFiles, sendText, downloadFile, getIP, downloadAllFiles } from "../lib/api";
 import { t as tHelper, getStatusMessage as getStatusHelper, tButton } from "../lib/translations";
 
-// --- (AppContextType definition is unchanged) ---
 interface AppContextType {
   // State
   files: SharedFile[];
@@ -16,7 +15,7 @@ interface AppContextType {
   statusFilename: string;
   text: string;
   copiedId: string | null;
-  selectedFile: File | null;
+  selectedFiles: File[]; // <-- CHANGED
   localIP: string | null;
   fileInputRef: React.RefObject<HTMLInputElement>;
   downloadingFileId: string | null;
@@ -31,6 +30,7 @@ interface AppContextType {
   handleCopyClick: (text: string, id: string) => void;
   handleChooseFileClick: () => void;
   handleDownloadClick: (file: SharedFile) => void;
+  handleDownloadAllClick: () => Promise<void>; // <-- ADDED
   // Helpers
   t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => string;
   tButton: (key: keyof (typeof translations)["en"]["button"]) => string;
@@ -51,7 +51,7 @@ const useStatusReset = (setStatusType: React.Dispatch<React.SetStateAction<AppCo
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // <-- CHANGED
   const [files, setFiles] = useState<SharedFile[]>([]);
   const [texts, setTexts] = useState<SharedText[]>([]);
   const [lang, setLang] = useState<LanguageKey>(getInitialLang());
@@ -67,16 +67,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useStatusReset(setStatusType, statusType);
 
   useEffect(() => {
-    // --- FIX: This logic is now safer to prevent duplicates ---
+    // ... (fetchInitialData is unchanged) ...
     const fetchInitialData = async () => {
       try {
         const initialItems: SharedItem[] = await getItems();
-        // Use functional updates to safely merge lists and avoid race conditions
         setFiles((prevFiles) => {
           const newFiles = initialItems.filter((item) => item.type === "file") as SharedFile[];
-          // Create a Set of existing IDs for quick lookup
           const existingIds = new Set(prevFiles.map((f) => f.id));
-          // Only add files that are not already in the state
           const merged = [...prevFiles, ...newFiles.filter((f) => !existingIds.has(f.id))];
           return merged;
         });
@@ -95,6 +92,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     fetchInitialData();
 
+    // ... (socket logic is unchanged) ...
     socket.on("item-added", (newItem: SharedItem) => {
       if (newItem.type === "file") {
         setFiles((prev) => (prev.find((f) => f.id === newItem.id) ? prev : [...prev, newItem]));
@@ -110,30 +108,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       socket.off("item-added");
       socket.off("items-cleared");
     };
-  }, []); // This still only runs once, which is correct
+  }, []);
 
-  // --- (All handlers are unchanged) ---
+  // --- UPDATED to handle multiple files ---
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setSelectedFile(event.target.files[0]);
+      setSelectedFiles(Array.from(event.target.files)); // Store as array
       setStatusType("selected");
-      setStatusFilename(event.target.files[0].name);
+      const names = Array.from(event.target.files).map((f) => f.name);
+      setStatusFilename(names.length === 1 ? names[0] : `${names.length} files`);
     }
   };
+
+  // --- UPDATED to handle multiple files ---
   const handleUploadClick = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
     setStatusType("uploading-file");
     try {
-      await uploadFile(selectedFile);
+      await uploadFiles(selectedFiles); // Use plural function
       setStatusType("success-file");
-      setSelectedFile(null);
+      setSelectedFiles([]); // Clear array
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Error uploading file:", error);
       setStatusType("fail-file");
     }
   };
+
   const handleTextSendClick = async () => {
+    // (This handler is unchanged)
     if (!text.trim()) return;
     setStatusType("uploading-text");
     try {
@@ -145,7 +148,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setStatusType("fail-text");
     }
   };
+
   const handleCopyClick = (textToCopy: string, id: string) => {
+    // (This handler is unchanged)
     if (navigator.clipboard) {
       navigator.clipboard.writeText(textToCopy).then(() => {
         setCopiedId(id);
@@ -170,15 +175,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   };
+
   const handleChooseFileClick = () => {
     fileInputRef.current?.click();
   };
+
   const handleDownloadClick = (file: SharedFile) => {
+    // (This handler is unchanged)
     setDownloadingFileId(file.id);
     downloadFile(file.filename);
     setTimeout(() => {
       setDownloadingFileId(null);
     }, 3000);
+  };
+
+  // --- ADDED: New handler for "Download All" ---
+  const handleDownloadAllClick = async () => {
+    // Calls the new API function
+    await downloadAllFiles(files, setDownloadingFileId);
   };
 
   const value = {
@@ -193,7 +207,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     text,
     setText,
     copiedId,
-    selectedFile,
+    selectedFiles, // <-- CHANGED
     localIP,
     fileInputRef,
     downloadingFileId,
@@ -203,6 +217,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     handleCopyClick,
     handleChooseFileClick,
     handleDownloadClick,
+    handleDownloadAllClick, // <-- ADDED
     t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => tHelper(lang, key),
     tButton: (key: keyof (typeof translations)["en"]["button"]) => tButton(lang, key),
     getStatusMessage: () => getStatusHelper(lang, statusType, statusFilename),

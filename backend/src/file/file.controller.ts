@@ -3,19 +3,22 @@ import {
   Post,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles, // <-- 1. IMPORT PLURAL
   Get,
   Param,
   Res,
   Body,
   ValidationPipe,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileInterceptor,
+  FilesInterceptor, // <-- 2. IMPORT PLURAL
+} from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join } from 'path';
-import { FileService } from './file.service'; // <-- Now this import works
+import { FileService, SharedItem } from './file.service';
 import type { Response } from 'express';
 
-// DTO (Data Transfer Object) for validating text input
 class CreateTextDto {
   text: string;
 }
@@ -25,20 +28,17 @@ export class FileController {
   constructor(private readonly fileService: FileService) {}
 
   @Post('text')
-  // --- 1. FIX: REMOVED 'async' ---
-  // This fixes the "'await' expression" error
   addText(@Body(new ValidationPipe()) body: CreateTextDto) {
     const savedText = this.fileService.addText(body.text);
-    return {
-      message: 'Text added successfully',
-      item: savedText,
-    };
+    return { message: 'Text added successfully', item: savedText };
   }
 
+  // --- 3. UPDATED TO HANDLE MULTIPLE FILES ---
   @Post('upload')
   @UseInterceptors(
-    FileInterceptor('file', {
-      // 'file' (singular)
+    // Change to 'FilesInterceptor' to accept an array
+    FilesInterceptor('files', 100, {
+      // 'files' (plural)
       storage: diskStorage({
         destination: join(__dirname, '..', '..', '..', 'uploads'),
         filename: (req, file, cb) => {
@@ -47,13 +47,20 @@ export class FileController {
       }),
     }),
   )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    const savedFile = this.fileService.addFile(file);
+  // Change to 'UploadedFiles' and the type to an array
+  uploadFiles(@UploadedFiles() files: Express.Multer.File[]) {
+    const savedFiles: SharedItem[] = [];
+    // Loop over all files and add them one by one
+    for (const file of files) {
+      const savedFile = this.fileService.addFile(file);
+      savedFiles.push(savedFile);
+    }
     return {
-      message: 'File uploaded successfully',
-      item: savedFile, // Renamed 'file' to 'item'
+      message: `${files.length} files uploaded successfully`,
+      items: savedFiles,
     };
   }
+  // --- END OF UPDATE ---
 
   @Get('download/:filename')
   downloadFile(@Param('filename') filename: string, @Res() res: Response) {
@@ -61,9 +68,5 @@ export class FileController {
     return res.download(filePath);
   }
 
-  @Get('items')
-  getAllItems() {
-    // This just returns the list our service is already holding
-    return this.fileService.getAllItems();
-  }
+  // --- 4. The '/download-all' (zip) endpoint is completely removed ---
 }
