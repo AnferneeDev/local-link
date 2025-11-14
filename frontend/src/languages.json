@@ -1,0 +1,44 @@
+{
+  "en": {
+    "description": "Share files directly from your computer",
+    "selectFile": "Select a file",
+    "chooseFile": "Choose File",
+    "status": {
+      "initial": "Upload a file to get started.",
+      "selected": "{{filename}} selected.",
+      "uploading": "Uploading...",
+      "success": "✅ File uploaded!",
+      "fail": "❌ Upload failed. Check the console."
+    },
+    "available": "Available Downloads",
+    "sharedText": "Shared Text & Links",
+    "none": "No files shared yet",
+    "noneText": "No text shared yet",
+    "download": "Download",
+    "upload": "Upload",
+    "sendText": "Send Text",
+    "copy": "Copy",
+    "copied": "Copied!"
+  },
+  "es": {
+    "description": "Comparte archivos desde tu computadora",
+    "selectFile": "Selecciona un archivo",
+    "chooseFile": "Elegir Archivo",
+    "status": {
+      "initial": "Sube un archivo para comenzar.",
+      "selected": "{{filename}} seleccionado.",
+      "uploading": "Subiendo...",
+      "success": "✅ ¡Archivo subido!",
+      "fail": "❌ Error al subir. Revisa la consola."
+    },
+    "available": "Descargas Disponibles",
+    "sharedText": "Texto y Enlaces Compartidos",
+    "none": "No hay archivos compartidos",
+    "noneText": "No hay texto compartido",
+    "download": "Descargar",
+    "upload": "Subir",
+    "sendText": "Enviar Texto",
+    "copy": "Copiar",
+    "copied": "¡Copiado!"
+  }
+}
