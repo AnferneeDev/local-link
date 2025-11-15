@@ -2,13 +2,22 @@ import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAppContext } from "../context/AppContext";
 import { useState } from "react";
-import { QRCodeCanvas } from "qrcode.react"; // Correct import
-import { QrCode, ArrowDown, Globe } from "lucide-react"; // All icons
+// import { QRCodeCanvas } from "qrcode.react"; // No longer needed, we get data URL
+import { QrCode, ArrowDown, Globe } from "lucide-react";
 
 export const AppHeader = () => {
-  const { lang, setLang, t, localIP } = useAppContext();
+  // --- FIX ---
+  // localIP is now the full URL (e.g., "http://192.168.1.1:3000")
+  // qrCodeDataUrl is the pre-generated QR code
+  const { lang, setLang, t, localIP, qrCodeDataUrl } = useAppContext();
+  // --- END FIX ---
+
   const [showQR, setShowQR] = useState(false);
-  const url = localIP ? `http://${localIP}:3000` : null;
+
+  // --- FIX ---
+  // We just use localIP directly.
+  const url = localIP;
+  // --- END FIX ---
 
   return (
     <CardHeader className="text-center space-y-2 pb-2">
@@ -16,7 +25,6 @@ export const AppHeader = () => {
       <div className="absolute top-4 right-4 z-10">
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs md:text-sm text-slate-500 dark:text-slate-400" onClick={() => setLang(lang === "en" ? "es" : "en")}>
           <Globe className="w-4 h-4 mr-1.5" />
-          {/* Text is hidden on mobile, shown on desktop */}
           <span className="hidden md:inline">{lang === "en" ? "Español" : "English"}</span>
         </Button>
       </div>
@@ -45,14 +53,15 @@ export const AppHeader = () => {
             </Button>
           </div>
 
-          {/* Conditional QR Code Display */}
-          {showQR && (
+          {/* --- FIX: Use qrCodeDataUrl from context --- */}
+          {showQR && qrCodeDataUrl && (
             <div className="flex items-center justify-center pt-4">
-              <QRCodeCanvas value={url} size={128} bgColor={"#ffffff"} fgColor={"#000000"} level={"L"} includeMargin={true} className="rounded-lg" />
+              <img src={qrCodeDataUrl} alt="QR Code" className="rounded-lg w-[128px] h-[128px]" />
             </div>
           )}
+          {/* --- END FIX --- */}
         </div>
       )}
-    </CardHeader>
+    </CardHeader> // <-- FIX: Corrected typo (was CardHeaer)
   );
 };

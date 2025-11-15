@@ -141,11 +141,6 @@ export const UploadManager = () => {
         <FileUpload />
         <TextUpload />
       </div>
-
-      {/* --- Status Message --- */}
-      <div className="text-center pt-4 border-t border-slate-100 dark:border-slate-800">
-        <p className="text-sm text-slate-500 dark:text-slate-400 italic h-5">{statusType === "selected" ? statusMsg : ""}</p>
-      </div>
     </>
   );
 };
