@@ -18,9 +18,10 @@ interface AppContextType {
   copiedId: string | null;
   selectedFiles: File[];
   localIP: string | null;
-  qrCodeDataUrl: string | null; // <-- ADDED
+  qrCodeDataUrl: string | null;
   fileInputRef: React.RefObject<HTMLInputElement>;
   downloadingFileId: string | null;
+  uploadProgress: number | null; // <-- 1. ADDED UPLOAD PROGRESS
   // State Setters
   setLang: (lang: LanguageKey) => void;
   setMode: (mode: "file" | "text") => void;
@@ -64,8 +65,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"file" | "text">("file");
   const [localIP, setLocalIP] = useState<string | null>(null);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null); // <-- ADDED
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  // --- 2. ADDED PROGRESS STATE ---
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useStatusReset(setStatusType, statusType);
 
@@ -133,9 +136,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // --- All other handlers (handleFileChange, handleUploadClick, etc.) are unchanged ---
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // (This handler is unchanged)
     if (event.target.files && event.target.files.length > 0) {
       setSelectedFiles(Array.from(event.target.files));
       setStatusType("selected");
@@ -144,21 +146,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // --- 3. UPDATED UPLOAD HANDLER ---
   const handleUploadClick = async () => {
     if (selectedFiles.length === 0) return;
+
     setStatusType("uploading-file");
+    setUploadProgress(0); // Start progress at 0
+
+    // This is our new callback function
+    const onProgress = (progress: number) => {
+      setUploadProgress(progress);
+    };
+
     try {
-      await uploadFiles(selectedFiles);
+      await uploadFiles(selectedFiles, onProgress); // Pass the callback
       setStatusType("success-file");
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Error uploading file:", error);
       setStatusType("fail-file");
+    } finally {
+      setUploadProgress(null); // Clear progress on success or fail
     }
   };
 
   const handleTextSendClick = async () => {
+    // (This handler is unchanged)
     if (!text.trim()) return;
     setStatusType("uploading-text");
     try {
@@ -172,6 +186,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleCopyClick = (textToCopy: string, id: string) => {
+    // (This handler is unchanged)
     if (navigator.clipboard) {
       navigator.clipboard.writeText(textToCopy).then(() => {
         setCopiedId(id);
@@ -198,10 +213,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleChooseFileClick = () => {
+    // (This handler is unchanged)
     fileInputRef.current?.click();
   };
 
   const handleDownloadClick = (file: SharedFile) => {
+    // (This handler is unchanged)
     setDownloadingFileId(file.id);
     downloadFile(file.filename);
     setTimeout(() => {
@@ -210,9 +227,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleDownloadAllClick = async () => {
+    // (This handler is unchanged)
     await downloadAllFiles(files, setDownloadingFileId);
   };
 
+  // --- 4. EXPOSE NEW STATE ---
   const value = {
     files,
     texts,
@@ -227,9 +246,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     copiedId,
     selectedFiles,
     localIP,
-    qrCodeDataUrl, // <-- ADDED
+    qrCodeDataUrl,
     fileInputRef,
     downloadingFileId,
+    uploadProgress, // <-- Expose it
     handleFileChange,
     handleUploadClick,
     handleTextSendClick,

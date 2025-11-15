@@ -5,17 +5,25 @@ import { Label } from "@/components/ui/label";
 import { File, Send, Type, Loader2, FileText, UploadCloud, Files } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { tButton } from "../lib/translations"; // Import tButton
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
-// --- (Button text helpers are unchanged) ---
+// --- Button text helpers ---
 const FileButtonText = () => {
-  const { lang, statusType } = useAppContext();
+  // --- FIX: Get uploadProgress ---
+  const { lang, statusType, uploadProgress } = useAppContext();
+
+  // --- Show progress if uploading ---
   if (statusType === "uploading-file") {
+    // --- FIX: Show percentage in button ---
+    const progressText = uploadProgress ? `Uploading... ${uploadProgress}%` : tButton(lang, "uploading");
     return (
       <>
-        <Loader2 className="w-5 h-5 mr-2 animate-spin" /> {tButton(lang, "uploading")}
+        <Loader2 className="w-5 h-5 mr-2 animate-spin" /> {progressText}
       </>
     );
   }
+  // --- End progress ---
+
   if (statusType === "success-file") return tButton(lang, "success");
   if (statusType === "fail-file") return tButton(lang, "fail");
   return tButton(lang, "upload");
@@ -49,7 +57,11 @@ const FileUpload = () => {
     handleUploadClick,
     selectedFiles, // Use selectedFiles
     statusType,
+    uploadProgress, // <-- FIX: Get progress
   } = useAppContext();
+
+  // --- FIX: Get uploading status ---
+  const isUploadingFile = statusType === "uploading-file";
 
   return (
     <div className="space-y-3">
@@ -71,10 +83,7 @@ const FileUpload = () => {
           ) : (
             <div className="flex flex-col items-center text-slate-700 dark:text-slate-200">
               <Files className="w-8 h-8" />
-              {/* --- THIS IS THE FIX --- */}
-              {/* I removed the broken t() function and just used a plain string */}
               <span className="mt-1 text-sm font-medium">{`${selectedFiles.length} files selected`}</span>
-              {/* --- END OF FIX --- */}
             </div>
           )}
         </div>
@@ -82,10 +91,19 @@ const FileUpload = () => {
 
       <Input id="file-upload" type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
 
+      {/* --- FIX: ADDED THE PROGRESS BAR --- */}
+      {isUploadingFile && uploadProgress !== null && (
+        <div className="space-y-1 text-center pt-1">
+          <Progress value={uploadProgress} className="w-full" />
+          <p className="text-xs text-slate-500">{`${uploadProgress}% ${uploadProgress === 100 ? "Processing..." : ""}`}</p>
+        </div>
+      )}
+      {/* --- END OF PROGRESS BAR --- */}
+
       <Button
         className="w-full py-5 rounded-2xl font-semibold text-lg bg-linear-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 transition-all duration-300 shadow-md hover:shadow-lg"
         onClick={handleUploadClick}
-        disabled={selectedFiles.length === 0 || statusType === "uploading-file"}
+        disabled={selectedFiles.length === 0 || isUploadingFile}
       >
         <FileButtonText />
       </Button>
@@ -93,13 +111,21 @@ const FileUpload = () => {
   );
 };
 
-// --- TextUpload Component (No Change) ---
+// --- TextUpload Component ---
 const TextUpload = () => {
   const { lang, t, text, setText, handleTextSendClick, statusType } = useAppContext();
 
   return (
     <div className="space-y-3">
-      <Textarea id="text-input" placeholder="Type your message or paste a link..." value={text} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)} className="resize-none h-24 overflow-y-auto" rows={3} />
+      <Textarea
+        id="text-input"
+        // --- FIX: Use translation key ---
+        placeholder={t("textPlaceholder")}
+        value={text}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
+        className="resize-none h-24 overflow-y-auto"
+        rows={3}
+      />
       <Button
         className="w-full py-5 rounded-2xl font-semibold text-lg bg-linear-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 transition-all duration-300 shadow-md hover:shadow-lg"
         onClick={handleTextSendClick}
@@ -140,6 +166,12 @@ export const UploadManager = () => {
       <div className="hidden md:grid md:grid-cols-2 md:gap-6 md:items-stretch">
         <FileUpload />
         <TextUpload />
+      </div>
+
+      {/* --- Status Message --- */}
+      <div className="h-5 text-center">
+        {/* --- FIX: Show status message --- */}
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{statusMsg}</p>
       </div>
     </>
   );
