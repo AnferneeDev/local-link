@@ -7,7 +7,7 @@
     "dragDrop": "Drag & drop or click to select file",
     "toggleFile": "File",
     "toggleText": "Text",
-    "textPlaceholder": "write here shit",
+    "textPlaceholder": "Enter text or a link to share",
     "status": {
       "initial": "",
       "selected": "{{filename}} selected.",
@@ -34,39 +34,40 @@
     "showQR": "Show QR",
     "hideQR": "Hide QR"
   },
+
   "es": {
-    "description": "Comparte archivos desde tu computadora",
-    "connectPrompt": "Ingresa esta URL en tus otros dispositivos",
-    "selectFile": "Selecciona un archivo",
-    "chooseFile": "Elegir Archivo",
+    "description": "Comparte archivos directamente desde tu computadora",
+    "connectPrompt": "Ingresa esta dirección en tus otros dispositivos",
+    "selectFile": "Seleccionar archivo",
+    "chooseFile": "Elegir archivo",
     "dragDrop": "Arrastra o haz clic para seleccionar",
     "toggleFile": "Archivo",
     "toggleText": "Texto",
-    "textPlaceholder": "escribe tu vaina aquí",
+    "textPlaceholder": "Escribe un texto o un enlace para compartir",
     "status": {
       "initial": "",
-      "selected": "{{filename}} seleccionado.",
+      "selected": "{{filename}} seleccionado",
       "uploading": "Subiendo...",
       "processing": "Procesando...",
-      "success": "✅ ¡Item compartido!",
+      "success": "✅ ¡Elemento compartido!",
       "fail": "❌ Error al compartir. Revisa la consola."
     },
     "button": {
       "upload": "Subir",
       "uploading": "Subiendo...",
       "success": "¡Éxito!",
-      "fail": "¡Falló!",
-      "send": "Enviar Texto",
+      "fail": "¡Error!",
+      "send": "Enviar texto",
       "sending": "Enviando...",
       "download": "Descargar",
       "downloading": "Descargando...",
-      "downloadAll": "Descargar Todo"
+      "downloadAll": "Descargar todo"
     },
-    "available": "Descargas Disponibles",
-    "sharedText": "Texto y Enlaces Compartidos",
+    "available": "Descargas disponibles",
+    "sharedText": "Texto y enlaces compartidos",
     "none": "No hay archivos compartidos",
     "noneText": "No hay texto compartido",
-    "showQR": "Mostrar QR",
-    "hideQR": "Ocultar QR"
+    "showQR": "Mostrar código QR",
+    "hideQR": "Ocultar código QR"
   }
 }

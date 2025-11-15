@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import translations from "../languages.json";
 import { LanguageKey, SharedFile, SharedText, SharedItem } from "../lib/types";
-import { socket } from "../lib/socket";
-// We no longer import getIP, because it's handled by window.api or a new endpoint
+// --- FIX: Import initializer, not socket ---
+import { initializeApi } from "../lib/socket";
 import { getItems, uploadFiles, sendText, downloadFile, downloadAllFiles } from "../lib/api";
 import { t as tHelper, getStatusMessage as getStatusHelper, tButton } from "../lib/translations";
 
@@ -72,26 +72,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useStatusReset(setStatusType, statusType);
 
+  // --- FIX: This effect now initializes the API ---
   useEffect(() => {
-    // --- (fetchInitialData is unchanged) ---
     const fetchInitialData = async () => {
       try {
+        let appData: { ip: string; qrCodeDataUrl: string; port: number };
         let initialItems: SharedItem[] = [];
 
         if (window.api) {
+          // --- 1. ELECTRON (HOST) MODE ---
           console.log("Running in Electron (host) mode");
-          const appData = await window.api.getAppData();
-          setLocalIP(appData.ip);
-          setQrCodeDataUrl(appData.qrCodeDataUrl);
-          initialItems = await getItems();
+          appData = await window.api.getAppData();
         } else {
+          // --- 2. BROWSER (CLIENT) MODE ---
           console.log("Running in Browser (client) mode");
           const appDataResponse = await fetch("/app-data");
-          const appData = await appDataResponse.json();
-          setLocalIP(appData.ip);
-          setQrCodeDataUrl(appData.qrCodeDataUrl);
-          initialItems = await getItems();
+          appData = await appDataResponse.json();
         }
+
+        // --- 3. INITIALIZE API & SOCKET (MUST be called before getItems) ---
+        const socket = initializeApi(appData.port);
+
+        setLocalIP(appData.ip);
+        setQrCodeDataUrl(appData.qrCodeDataUrl);
+
+        // --- 4. Now we can call getItems() ---
+        initialItems = await getItems();
 
         setFiles((prevFiles) => {
           const newFiles = initialItems.filter((item) => item.type === "file") as SharedFile[];
@@ -105,28 +111,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const merged = [...prevTexts, ...newTexts.filter((t) => !existingIds.has(t.id))];
           return merged;
         });
+
+        // --- 5. SET UP SOCKET LISTENERS ---
+        socket.on("item-added", (newItem: SharedItem) => {
+          if (newItem.type === "file") {
+            setFiles((prev) => (prev.find((f) => f.id === newItem.id) ? prev : [...prev, newItem]));
+          } else if (newItem.type === "text") {
+            setTexts((prev) => (prev.find((t) => t.id === newItem.id) ? prev : [...prev, newItem]));
+          }
+        });
+        socket.on("items-cleared", () => {
+          setFiles([]);
+          setTexts([]);
+        });
+
+        // Return cleanup function
+        return () => {
+          socket.off("item-added");
+          socket.off("items-cleared");
+        };
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       }
     };
-    fetchInitialData();
 
-    // --- (socket logic is unchanged) ---
-    socket.on("item-added", (newItem: SharedItem) => {
-      if (newItem.type === "file") {
-        setFiles((prev) => (prev.find((f) => f.id === newItem.id) ? prev : [...prev, newItem]));
-      } else if (newItem.type === "text") {
-        setTexts((prev) => (prev.find((t) => t.id === newItem.id) ? prev : [...prev, newItem]));
-      }
-    });
-    socket.on("items-cleared", () => {
-      setFiles([]);
-      setTexts([]);
-    });
-    return () => {
-      socket.off("item-added");
-      socket.off("items-cleared");
-    };
+    fetchInitialData();
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

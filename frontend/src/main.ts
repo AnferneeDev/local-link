@@ -1,12 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  shell,
-  dialog,
-  ipcMain,
-  session,
-  globalShortcut, // <-- 1. IMPORTED globalShortcut
-} from "electron";
+import { app, BrowserWindow, shell, dialog, ipcMain, session, globalShortcut } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import { networkInterfaces } from "node:os"; // For getting IP
@@ -40,6 +32,7 @@ export type SharedItem = SharedFile | SharedText;
 // --- In-Memory "Database" ---
 let items: SharedItem[] = [];
 let io: Server | null = null;
+let dynamicPort = 0; // <-- Will store the chosen port
 
 // --- Pathing (uploads folder) ---
 const uploadsPath = isDev ? path.join(app.getAppPath(), "../uploads") : path.join(path.dirname(app.getPath("exe")), "uploads");
@@ -126,111 +119,122 @@ function getAllItems(): SharedItem[] {
 }
 
 // --- Start The New Server ---
-function startLocalServer() {
-  if (!fs.existsSync(uploadsPath)) {
-    fs.mkdirSync(uploadsPath, { recursive: true });
-  }
-
-  const serverApp = express();
-  serverApp.use(cors());
-  const httpServer = createServer(serverApp);
-  io = new Server(httpServer, {
-    cors: { origin: "*" },
-  });
-
-  // Middlewares
-  serverApp.use(express.json());
-  serverApp.use(express.urlencoded({ extended: true }));
-
-  // Serve /uploads folder for images/audio
-  serverApp.use("/uploads", express.static(uploadsPath));
-
-  // Configure Multer
-  const storage = multer.diskStorage({
-    destination: uploadsPath,
-    filename: (req, file, cb) => {
-      cb(null, file.originalname);
-    },
-  });
-  const upload = multer({ storage: storage });
-
-  // --- Express Routes ---
-  serverApp.get("/items", (req, res) => {
-    res.json(getAllItems());
-  });
-
-  serverApp.get("/app-data", async (req, res) => {
-    const ip = getLocalIP();
-    if (!ip) {
-      return res.status(500).json({ error: "No IP found" });
+function startLocalServer(): Promise<number> {
+  // --- Return a promise to get the port ---
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(uploadsPath)) {
+      fs.mkdirSync(uploadsPath, { recursive: true });
     }
-    try {
-      const url = `http://${ip}:3000`;
-      const qrCodeDataUrl = await qrcode.toDataURL(url);
-      res.json({ ip: url, qrCodeDataUrl });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to generate QR code" });
-    }
-  });
 
-  serverApp.post("/text", (req, res) => {
-    const { text } = req.body;
-    if (!text) return res.status(400).send("Missing 'text' field");
-    const savedText = addText(text);
-    res.json({ message: "Text added", item: savedText });
-  });
-
-  serverApp.post("/upload", upload.array("files", 100), (req, res) => {
-    const files = req.files as Express.Multer.File[];
-    if (!files || files.length === 0) {
-      return res.status(400).send("No files uploaded");
-    }
-    const savedFiles = files.map((file) => addFile(file));
-    res.json({ message: "Files uploaded", items: savedFiles });
-  });
-
-  serverApp.get("/download/:filename", (req, res) => {
-    const { filename } = req.params;
-    const filePath = path.join(uploadsPath, filename);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).send("File not found");
-    }
-    res.download(filePath);
-  });
-
-  // WebSocket Logic
-  io.on("connection", (socket) => {
-    console.log(`Client connected: ${socket.id}`);
-    socket.on("disconnect", () => {
-      console.log(`Client disconnected: ${socket.id}`);
+    const serverApp = express();
+    serverApp.use(cors());
+    const httpServer = createServer(serverApp);
+    io = new Server(httpServer, {
+      cors: { origin: "*" },
     });
-  });
 
-  // Serve React App to Clients (Catch-all)
-  if (!isDev) {
-    const clientAppPath = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
-    console.log(`Serving client web app from: ${clientAppPath}`);
-    serverApp.use(express.static(clientAppPath));
-    serverApp.get(/.*/, (req, res) => {
-      res.sendFile(path.join(clientAppPath, "index.html"));
+    // Middlewares
+    serverApp.use(express.json());
+    serverApp.use(express.urlencoded({ extended: true }));
+
+    // Serve /uploads folder for images/audio
+    serverApp.use("/uploads", express.static(uploadsPath));
+
+    // Configure Multer
+    const storage = multer.diskStorage({
+      destination: uploadsPath,
+      filename: (req, file, cb) => {
+        cb(null, file.originalname);
+      },
     });
-  }
+    const upload = multer({ storage: storage });
 
-  // Start Server
-  httpServer.listen(3000, "0.0.0.0", () => {
-    console.log("Local sharing server started on port 3000");
+    // --- Express Routes ---
+    serverApp.get("/items", (req, res) => {
+      res.json(getAllItems());
+    });
+
+    // --- FIX: Use dynamic port in /app-data ---
+    serverApp.get("/app-data", async (req, res) => {
+      const ip = getLocalIP();
+      if (!ip) {
+        return res.status(500).json({ error: "No IP found" });
+      }
+      try {
+        const url = `http://${ip}:${dynamicPort}`; // Use global port
+        const qrCodeDataUrl = await qrcode.toDataURL(url);
+        res.json({ ip: url, qrCodeDataUrl, port: dynamicPort }); // Send port
+      } catch (err) {
+        res.status(500).json({ error: "Failed to generate QR code" });
+      }
+    });
+
+    serverApp.post("/text", (req, res) => {
+      const { text } = req.body;
+      if (!text) return res.status(400).send("Missing 'text' field");
+      const savedText = addText(text);
+      res.json({ message: "Text added", item: savedText });
+    });
+
+    serverApp.post("/upload", upload.array("files", 100), (req, res) => {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).send("No files uploaded");
+      }
+      const savedFiles = files.map((file) => addFile(file));
+      res.json({ message: "Files uploaded", items: savedFiles });
+    });
+
+    serverApp.get("/download/:filename", (req, res) => {
+      const { filename } = req.params;
+      const filePath = path.join(uploadsPath, filename);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send("File not found");
+      }
+      res.download(filePath);
+    });
+
+    // WebSocket Logic
+    io.on("connection", (socket) => {
+      console.log(`Client connected: ${socket.id}`);
+      socket.on("disconnect", () => {
+        console.log(`Client disconnected: ${socket.id}`);
+      });
+    });
+
+    // Serve React App to Clients (Catch-all)
+    if (!isDev) {
+      const clientAppPath = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
+      console.log(`Serving client web app from: ${clientAppPath}`);
+      serverApp.use(express.static(clientAppPath));
+      serverApp.get(/.*/, (req, res) => {
+        res.sendFile(path.join(clientAppPath, "index.html"));
+      });
+    }
+
+    // --- FIX: Start Server on Port 0 ---
+    httpServer.listen(0, "0.0.0.0", () => {
+      const address = httpServer.address();
+      if (address && typeof address === "object") {
+        dynamicPort = address.port; // Store the chosen port
+        console.log(`Local sharing server started on port ${dynamicPort}`);
+        resolve(dynamicPort); // Resolve the promise with the port
+      } else {
+        reject(new Error("Failed to start server"));
+      }
+    });
   });
 }
 
-// --- IPC Handler for React App ---
+// --- FIX: IPC Handler sends dynamic port ---
 ipcMain.handle("get-app-data", async () => {
   const ip = getLocalIP();
   if (!ip) {
     throw new Error("Could not find local IP address.");
   }
-  const url = `http://${ip}:3000`;
+  const url = `http://${ip}:${dynamicPort}`; // Use global port
   const qrCodeDataUrl = await qrcode.toDataURL(url);
-  return { ip: url, qrCodeDataUrl };
+  return { ip: url, qrCodeDataUrl, port: dynamicPort }; // Send port
 });
 
 // --- File Deletion Logic ---
@@ -275,7 +279,7 @@ const createWindow = () => {
     },
   });
 
-  // --- 2. REMOVE MENU BAR ---
+  // --- REMOVE MENU BAR ---
   mainWindow.setMenu(null);
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -291,11 +295,15 @@ const createWindow = () => {
   }
 };
 
-// --- CSP (Content Security Policy) ---
+// --- FIX: CSP uses dynamic port ---
 app.on("session-created", (session) => {
   session.webRequest.onHeadersReceived((details, callback) => {
     const baseCSP = ["default-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:"];
-    const connectSrc = ["'self'", "http://localhost:5005", "ws://localhost:5005"];
+    const connectSrc = [
+      "'self'",
+      `http://localhost:${dynamicPort}`, // Use global port
+      `ws://localhost:${dynamicPort}`, // Use global port
+    ];
     if (isDev) {
       baseCSP.push("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
       connectSrc.push(MAIN_WINDOW_VITE_DEV_SERVER_URL.replace(/\/$/, ""));
@@ -312,12 +320,12 @@ app.on("session-created", (session) => {
   });
 });
 
-// --- App Lifecycle ---
-app.on("ready", () => {
-  startLocalServer();
+// --- FIX: App Ready is async ---
+app.on("ready", async () => {
+  await startLocalServer(); // Wait for server to start
   createWindow();
 
-  // --- 3. ADD CUSTOM DEVTOOLS SHORTCUT ---
+  // --- ADD CUSTOM DEVTOOLS SHORTCUT ---
   globalShortcut.register("CommandOrControl+Shift+Alt+D", () => {
     BrowserWindow.getFocusedWindow()?.webContents.toggleDevTools();
   });
@@ -329,7 +337,7 @@ app.on("window-all-closed", () => {
   }
 });
 
-// --- 3. UNREGISTER SHORTCUT ON QUIT ---
+// --- UNREGISTER SHORTCUT ON QUIT ---
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });

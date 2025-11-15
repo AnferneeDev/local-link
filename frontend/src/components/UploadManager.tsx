@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { File, Send, Type, Loader2, FileText, UploadCloud, Files } from "lucide-react";
+import { File, Send, Type, Loader2, FileText, UploadCloud, Files, UploadCloudIcon } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { tButton } from "../lib/translations"; // Import tButton
 import { Progress } from "@/components/ui/progress"; // Import Progress
@@ -22,7 +22,12 @@ const FileButtonText = () => {
 
   if (statusType === "success-file") return tButton(lang, "success");
   if (statusType === "fail-file") return tButton(lang, "fail");
-  return tButton(lang, "upload");
+  return (
+    <>
+      {tButton(lang, "upload")}
+      <UploadCloud className="w-4 h-4 ml-2" />
+    </>
+  );
 };
 
 const TextButtonText = () => {

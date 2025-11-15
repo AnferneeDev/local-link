@@ -1,14 +1,23 @@
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
-// --- THIS IS THE FIX ---
+export let socket: Socket;
+export let API_BASE: string;
 
-// This checks if we are running inside Electron (window.api exists)
-const isElectron = !!(window as any).api;
+/**
+ * Initializes the API base URL and the Socket.IO connection.
+ * This must be called once at app startup from a React component.
+ */
+export const initializeApi = (port: number) => {
+  const isElectron = !!(window as any).api;
 
-// If in Electron, use localhost.
-// If in a browser (phone), use a relative path ("")
-export const API_BASE = isElectron ? "http://localhost:3000" : "";
+  // Electron app connects to localhost:PORT
+  // Browser/phone connects to the server it was loaded from ("")
+  API_BASE = isElectron ? `http://localhost:${port}` : "";
 
-// --- END OF FIX ---
+  socket = io(API_BASE);
 
-export const socket = io(API_BASE);
+  console.log(`API initialized. Base: ${API_BASE}`);
+
+  // Return the socket for convenience
+  return socket;
+};
