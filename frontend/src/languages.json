@@ -22,7 +22,8 @@
       "send": "Send Text",
       "sending": "Sending...",
       "download": "Download",
-      "downloading": "Downloading..."
+      "downloading": "Downloading...",
+      "downloadAll": "Download All"
     },
     "available": "Available Downloads",
     "sharedText": "Shared Text & Links",
@@ -54,7 +55,8 @@
       "send": "Enviar Texto",
       "sending": "Enviando...",
       "download": "Descargar",
-      "downloading": "Descargando..."
+      "downloading": "Descargando...",
+      "downloadAll": "Descargar Todo"
     },
     "available": "Descargas Disponibles",
     "sharedText": "Texto y Enlaces Compartidos",

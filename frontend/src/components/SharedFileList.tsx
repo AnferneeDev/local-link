@@ -6,7 +6,15 @@ import { API_BASE } from "../lib/socket";
 // We don't need to import downloadFile here, it's handled by the context
 
 export const SharedFileList = () => {
-  const { lang, t, files, handleDownloadClick, downloadingFileId, handleDownloadAllClick } = useAppContext();
+  const {
+    lang,
+    t,
+    files,
+    handleDownloadClick,
+    downloadingFileId,
+    handleDownloadAllClick,
+    tButton, // <-- Make sure tButton is provided by your context
+  } = useAppContext();
 
   return (
     <div className="space-y-3">
@@ -16,7 +24,8 @@ export const SharedFileList = () => {
         {files.length > 1 && ( // Only show if there's more than one file
           <Button variant="outline" size="sm" className="h-8" onClick={handleDownloadAllClick}>
             <Package className="w-3 h-3 mr-1.5" />
-            Download All
+            {/* --- FIX: "Download All" is now translated --- */}
+            {tButton("downloadAll")}
           </Button>
         )}
       </div>
@@ -31,14 +40,13 @@ export const SharedFileList = () => {
             const isDownloading = downloadingFileId === item.id;
 
             return (
-              // --- THIS 'li' HAS BEEN UPDATED ---
-              // Removed hover:bg-white, dark:hover:bg-slate-800, and transition-colors
               <li key={item.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
                 <FileText className="w-4 h-4 mr-2 text-slate-500 shrink-0" />
 
                 {/* --- FILENAME PREVIEW LINK --- */}
                 <a
-                  href={`${API_BASE}/file/${item.filename}`} // Serve file directly
+                  // --- FIX: The href now points to /uploads/ ---
+                  href={`${API_BASE}/uploads/${item.filename}`}
                   target="_blank" // Open in new tab
                   rel="noopener noreferrer"
                   className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[180px] md:max-w-[220px] hover:underline"

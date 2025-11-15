@@ -1,9 +1,17 @@
-import { app, BrowserWindow, shell, dialog, ipcMain, session } from "electron";
+import {
+  app,
+  BrowserWindow,
+  shell,
+  dialog,
+  ipcMain,
+  session,
+  globalShortcut, // <-- 1. IMPORTED globalShortcut
+} from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import { networkInterfaces } from "node:os"; // For getting IP
 import express from "express"; // For the server
-import cors from "cors"; // <-- 1. ADDED THIS IMPORT
+import cors from "cors"; // For CORS
 import { createServer } from "http"; // For the server
 import { Server } from "socket.io"; // For websockets
 import multer from "multer"; // For file uploads
@@ -36,7 +44,7 @@ let io: Server | null = null;
 // --- Pathing (uploads folder) ---
 const uploadsPath = isDev ? path.join(app.getAppPath(), "../uploads") : path.join(path.dirname(app.getPath("exe")), "uploads");
 
-// --- Single Instance Lock ---
+// --- Single Instance Lock (Already present and correct) ---
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -68,7 +76,6 @@ const quitTranslations = {
 function getLocalIP(): string | null {
   const nets = networkInterfaces();
   for (const name of Object.keys(nets)) {
-    // --- 3. FIX: Removed non-null assertion ---
     const netInfo = nets[name];
     if (netInfo) {
       for (const net of netInfo) {
@@ -77,7 +84,6 @@ function getLocalIP(): string | null {
         }
       }
     }
-    // --- END FIX ---
   }
   return null;
 }
@@ -126,17 +132,20 @@ function startLocalServer() {
   }
 
   const serverApp = express();
-  serverApp.use(cors()); // <-- 1. ADDED THIS LINE
+  serverApp.use(cors());
   const httpServer = createServer(serverApp);
   io = new Server(httpServer, {
-    cors: { origin: "*" }, // Allow all external connections
+    cors: { origin: "*" },
   });
 
   // Middlewares
   serverApp.use(express.json());
   serverApp.use(express.urlencoded({ extended: true }));
 
-  // Configure Multer for file storage
+  // Serve /uploads folder for images/audio
+  serverApp.use("/uploads", express.static(uploadsPath));
+
+  // Configure Multer
   const storage = multer.diskStorage({
     destination: uploadsPath,
     filename: (req, file, cb) => {
@@ -145,10 +154,11 @@ function startLocalServer() {
   });
   const upload = multer({ storage: storage });
 
-  // --- Replicated Express Routes ---
+  // --- Express Routes ---
   serverApp.get("/items", (req, res) => {
     res.json(getAllItems());
   });
+
   serverApp.get("/app-data", async (req, res) => {
     const ip = getLocalIP();
     if (!ip) {
@@ -188,7 +198,7 @@ function startLocalServer() {
     res.download(filePath);
   });
 
-  // --- WebSocket Logic ---
+  // WebSocket Logic
   io.on("connection", (socket) => {
     console.log(`Client connected: ${socket.id}`);
     socket.on("disconnect", () => {
@@ -196,30 +206,23 @@ function startLocalServer() {
     });
   });
 
-  // --- 2. FIX: ADDED CATCH-ALL ROUTE ---
+  // Serve React App to Clients (Catch-all)
   if (!isDev) {
     const clientAppPath = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
     console.log(`Serving client web app from: ${clientAppPath}`);
-
-    // Serve static files (js, css, etc.)
     serverApp.use(express.static(clientAppPath));
-
-    // For any other request, send the index.html
     serverApp.get(/.*/, (req, res) => {
       res.sendFile(path.join(clientAppPath, "index.html"));
     });
   }
-  // --- END FIX ---
 
-  // --- Start Server ---
+  // Start Server
   httpServer.listen(3000, "0.0.0.0", () => {
-    // 0.0.0.0 listens on all available interfaces
     console.log("Local sharing server started on port 3000");
   });
 }
 
 // --- IPC Handler for React App ---
-// This is how your React app gets the IP and QR code
 ipcMain.handle("get-app-data", async () => {
   const ip = getLocalIP();
   if (!ip) {
@@ -233,8 +236,8 @@ ipcMain.handle("get-app-data", async () => {
 // --- File Deletion Logic ---
 function deleteUploadsFolder() {
   console.log(`Attempting to delete uploads folder at: ${uploadsPath}`);
-  items = []; // Clear in-memory list
-  notifyItemsCleared(); // Tell clients
+  items = [];
+  notifyItemsCleared();
   try {
     if (fs.existsSync(uploadsPath)) {
       fs.rmSync(uploadsPath, { recursive: true, force: true });
@@ -252,7 +255,9 @@ if (started) {
 }
 
 const createWindow = () => {
-  const iconPath = isDev ? path.join(process.cwd(), "public", "icon.png") : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/icon.png`);
+  const iconPath = isDev
+    ? path.join(process.cwd(), "public", "icon.ico") // Using .ico as discussed
+    : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/icon.ico`); // Using .ico
 
   const prodIconExists = !isDev && fs.existsSync(iconPath);
 
@@ -262,13 +267,16 @@ const createWindow = () => {
     height: 750,
     icon: prodIconExists ? iconPath : undefined,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"), // THIS IS VITAL
+      preload: path.join(__dirname, "preload.js"),
       sandbox: false,
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
     },
   });
+
+  // --- 2. REMOVE MENU BAR ---
+  mainWindow.setMenu(null);
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
@@ -277,7 +285,7 @@ const createWindow = () => {
 
   if (isDev) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools(); // Still open in dev
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
@@ -286,14 +294,8 @@ const createWindow = () => {
 // --- CSP (Content Security Policy) ---
 app.on("session-created", (session) => {
   session.webRequest.onHeadersReceived((details, callback) => {
-    const baseCSP = [
-      "default-src 'self'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:", // 'data:' is needed for the QR code
-    ];
-
+    const baseCSP = ["default-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:"];
     const connectSrc = ["'self'", "http://localhost:3000", "ws://localhost:3000"];
-
     if (isDev) {
       baseCSP.push("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
       connectSrc.push(MAIN_WINDOW_VITE_DEV_SERVER_URL.replace(/\/$/, ""));
@@ -301,7 +303,6 @@ app.on("session-created", (session) => {
       baseCSP.push("script-src 'self'");
     }
     baseCSP.push(`connect-src ${connectSrc.join(" ")}`);
-
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -313,14 +314,24 @@ app.on("session-created", (session) => {
 
 // --- App Lifecycle ---
 app.on("ready", () => {
-  startLocalServer(); // Start our new server
+  startLocalServer();
   createWindow();
+
+  // --- 3. ADD CUSTOM DEVTOOLS SHORTCUT ---
+  globalShortcut.register("CommandOrControl+Shift+Alt+D", () => {
+    BrowserWindow.getFocusedWindow()?.webContents.toggleDevTools();
+  });
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+// --- 3. UNREGISTER SHORTCUT ON QUIT ---
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on("activate", () => {
