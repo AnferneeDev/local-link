@@ -1,12 +1,11 @@
 import { API_BASE } from "./socket";
-import { SharedFile } from "./types"; // Import SharedFile type
+import { SharedFile } from "./types";
 
 /**
  * Uploads one or more files to the server.
  */
 export const uploadFiles = async (selectedFiles: File[]) => {
   const formData = new FormData();
-  // Loop and append all files
   for (const file of selectedFiles) {
     formData.append("files", file); // 'files' (plural)
   }
@@ -65,16 +64,11 @@ export const downloadAllFiles = async (files: SharedFile[], setDownloadingFileId
   for (const file of files) {
     setDownloadingFileId(file.id); // Show spinner
     downloadFile(file.filename);
-    // Wait 500ms between each download to avoid pop-up blockers
     await new Promise((resolve) => setTimeout(resolve, 500));
     setDownloadingFileId(null); // Hide spinner
   }
 };
 
-export const getIP = async () => {
-  const response = await fetch(`${API_BASE}/ip`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch IP");
-  }
-  return await response.json();
-};
+// --- THIS IS THE CHANGE ---
+// We deleted the getIP() function.
+// It will be replaced by window.api.getAppData() in the context.

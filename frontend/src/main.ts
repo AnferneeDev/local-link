@@ -1,48 +1,240 @@
-import { app, BrowserWindow, shell } from "electron";
-// --- 1. FIX: Import 'path' and 'join' correctly ---
-import path, { join } from "node:path";
+import { app, BrowserWindow, shell, dialog, ipcMain, session } from "electron";
+import path from "node:path";
 import fs from "node:fs";
+import { networkInterfaces } from "node:os"; // For getting IP
+import express from "express"; // For the server
+import cors from "cors"; // <-- 1. ADDED THIS IMPORT
+import { createServer } from "http"; // For the server
+import { Server } from "socket.io"; // For websockets
+import multer from "multer"; // For file uploads
+import * as qrcode from "qrcode"; // For QR code
 import started from "electron-squirrel-startup";
 
-import { spawn, ChildProcess } from "child_process";
-// const { join } = path; // <-- 2. DELETED THIS BAD LINE
+// App: Local Link
+// Author: Anfernee
 
-let nestProcess: ChildProcess | null = null;
+const isDev = !!MAIN_WINDOW_VITE_DEV_SERVER_URL;
 
-function startNestServer() {
-  console.log("Attempting to start NestJS server...");
-  const nestCommand = "node";
-  const nestAppPath = join(app.getAppPath(), "../backend/dist/main.js");
-  console.log(`NestJS app path resolved to: ${nestAppPath}`);
+// --- Types (Copied from your NestJS service) ---
+export interface SharedFile {
+  id: string;
+  type: "file";
+  filename: string;
+  path: string;
+}
+export interface SharedText {
+  id: string;
+  type: "text";
+  content: string;
+}
+export type SharedItem = SharedFile | SharedText;
 
-  nestProcess = spawn(nestCommand, [nestAppPath]);
+// --- In-Memory "Database" ---
+let items: SharedItem[] = [];
+let io: Server | null = null;
 
-  if (!nestProcess) {
-    console.error("Failed to spawn NestJS process.");
-    return;
-  }
-  nestProcess.stdout?.on("data", (data) => {
-    console.log(`[NestJS STDOUT]: ${data}`);
-  });
-  nestProcess.stderr?.on("data", (data) => {
-    console.error(`[NestJS STDERR]: ${data}`);
-  });
-  nestProcess.on("close", (code) => {
-    console.log(`NestJS process exited with code ${code}`);
+// --- Pathing (uploads folder) ---
+const uploadsPath = isDev ? path.join(app.getAppPath(), "../uploads") : path.join(path.dirname(app.getPath("exe")), "uploads");
+
+// --- Single Instance Lock ---
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const mainWindow = BrowserWindow.getAllWindows()[0];
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
   });
 }
 
-function stopNestServer() {
-  if (nestProcess) {
-    console.log("Stopping NestJS server...");
-    nestProcess.kill();
-    nestProcess = null;
+let isQuitting = false;
+const quitTranslations = {
+  en: {
+    title: "Quit Local Link?",
+    message: "The files you haven't saved will be deleted.",
+    buttons: ["OK", "Cancel"],
+  },
+  es: {
+    title: "¿Salir de Local Link?",
+    message: "Los archivos que no hayas guardado serán eliminados.",
+    buttons: ["Aceptar", "Cancelar"],
+  },
+};
+
+// --- Helper: Get Local IP ---
+function getLocalIP(): string | null {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    // --- 3. FIX: Removed non-null assertion ---
+    const netInfo = nets[name];
+    if (netInfo) {
+      for (const net of netInfo) {
+        if (net.family === "IPv4" && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+    // --- END FIX ---
   }
+  return null;
 }
 
+// --- Helper: File Service Logic ---
+function notifyItemAdded(item: SharedItem) {
+  if (io) io.emit("item-added", item);
+}
+function notifyItemsCleared() {
+  if (io) io.emit("items-cleared");
+}
+
+function addFile(file: Express.Multer.File): SharedFile {
+  const newFile: SharedFile = {
+    id: `${Date.now()}-${file.filename}`,
+    type: "file",
+    filename: file.filename,
+    path: file.path,
+  };
+  items.push(newFile);
+  notifyItemAdded(newFile);
+  console.log("File added:", newFile);
+  return newFile;
+}
+
+function addText(content: string): SharedText {
+  const newText: SharedText = {
+    id: `${Date.now()}-text`,
+    type: "text",
+    content: content,
+  };
+  items.push(newText);
+  notifyItemAdded(newText);
+  console.log("Text added:", newText);
+  return newText;
+}
+
+function getAllItems(): SharedItem[] {
+  return items;
+}
+
+// --- Start The New Server ---
+function startLocalServer() {
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+
+  const serverApp = express();
+  serverApp.use(cors()); // <-- 1. ADDED THIS LINE
+  const httpServer = createServer(serverApp);
+  io = new Server(httpServer, {
+    cors: { origin: "*" }, // Allow all external connections
+  });
+
+  // Middlewares
+  serverApp.use(express.json());
+  serverApp.use(express.urlencoded({ extended: true }));
+
+  // Configure Multer for file storage
+  const storage = multer.diskStorage({
+    destination: uploadsPath,
+    filename: (req, file, cb) => {
+      cb(null, file.originalname);
+    },
+  });
+  const upload = multer({ storage: storage });
+
+  // --- Replicated Express Routes ---
+  serverApp.get("/items", (req, res) => {
+    res.json(getAllItems());
+  });
+  serverApp.get("/app-data", async (req, res) => {
+    const ip = getLocalIP();
+    if (!ip) {
+      return res.status(500).json({ error: "No IP found" });
+    }
+    try {
+      const url = `http://${ip}:3000`;
+      const qrCodeDataUrl = await qrcode.toDataURL(url);
+      res.json({ ip: url, qrCodeDataUrl });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to generate QR code" });
+    }
+  });
+
+  serverApp.post("/text", (req, res) => {
+    const { text } = req.body;
+    if (!text) return res.status(400).send("Missing 'text' field");
+    const savedText = addText(text);
+    res.json({ message: "Text added", item: savedText });
+  });
+
+  serverApp.post("/upload", upload.array("files", 100), (req, res) => {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return res.status(400).send("No files uploaded");
+    }
+    const savedFiles = files.map((file) => addFile(file));
+    res.json({ message: "Files uploaded", items: savedFiles });
+  });
+
+  serverApp.get("/download/:filename", (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join(uploadsPath, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send("File not found");
+    }
+    res.download(filePath);
+  });
+
+  // --- WebSocket Logic ---
+  io.on("connection", (socket) => {
+    console.log(`Client connected: ${socket.id}`);
+    socket.on("disconnect", () => {
+      console.log(`Client disconnected: ${socket.id}`);
+    });
+  });
+
+  // --- 2. FIX: ADDED CATCH-ALL ROUTE ---
+  if (!isDev) {
+    const clientAppPath = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
+    console.log(`Serving client web app from: ${clientAppPath}`);
+
+    // Serve static files (js, css, etc.)
+    serverApp.use(express.static(clientAppPath));
+
+    // For any other request, send the index.html
+    serverApp.get(/.*/, (req, res) => {
+      res.sendFile(path.join(clientAppPath, "index.html"));
+    });
+  }
+  // --- END FIX ---
+
+  // --- Start Server ---
+  httpServer.listen(3000, "0.0.0.0", () => {
+    // 0.0.0.0 listens on all available interfaces
+    console.log("Local sharing server started on port 3000");
+  });
+}
+
+// --- IPC Handler for React App ---
+// This is how your React app gets the IP and QR code
+ipcMain.handle("get-app-data", async () => {
+  const ip = getLocalIP();
+  if (!ip) {
+    throw new Error("Could not find local IP address.");
+  }
+  const url = `http://${ip}:3000`;
+  const qrCodeDataUrl = await qrcode.toDataURL(url);
+  return { ip: url, qrCodeDataUrl };
+});
+
+// --- File Deletion Logic ---
 function deleteUploadsFolder() {
-  const uploadsPath = join(app.getAppPath(), "../uploads");
   console.log(`Attempting to delete uploads folder at: ${uploadsPath}`);
+  items = []; // Clear in-memory list
+  notifyItemsCleared(); // Tell clients
   try {
     if (fs.existsSync(uploadsPath)) {
       fs.rmSync(uploadsPath, { recursive: true, force: true });
@@ -60,12 +252,21 @@ if (started) {
 }
 
 const createWindow = () => {
+  const iconPath = isDev ? path.join(process.cwd(), "public", "icon.png") : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/icon.png`);
+
+  const prodIconExists = !isDev && fs.existsSync(iconPath);
+
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    title: "Local Link",
+    width: 900,
+    height: 750,
+    icon: prodIconExists ? iconPath : undefined,
     webPreferences: {
-      preload: join(__dirname, "preload.js"), // <-- 3. This 'join' now works
+      preload: path.join(__dirname, "preload.js"), // THIS IS VITAL
       sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
     },
   });
 
@@ -74,24 +275,50 @@ const createWindow = () => {
     return { action: "deny" };
   });
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+  if (isDev) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)); // <-- 3. This 'join' now works
+    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
-
-  mainWindow.webContents.openDevTools();
 };
 
+// --- CSP (Content Security Policy) ---
+app.on("session-created", (session) => {
+  session.webRequest.onHeadersReceived((details, callback) => {
+    const baseCSP = [
+      "default-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:", // 'data:' is needed for the QR code
+    ];
+
+    const connectSrc = ["'self'", "http://localhost:3000", "ws://localhost:3000"];
+
+    if (isDev) {
+      baseCSP.push("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
+      connectSrc.push(MAIN_WINDOW_VITE_DEV_SERVER_URL.replace(/\/$/, ""));
+    } else {
+      baseCSP.push("script-src 'self'");
+    }
+    baseCSP.push(`connect-src ${connectSrc.join(" ")}`);
+
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [baseCSP.join("; ")],
+      },
+    });
+  });
+});
+
+// --- App Lifecycle ---
 app.on("ready", () => {
-  startNestServer();
+  startLocalServer(); // Start our new server
   createWindow();
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    stopNestServer();
-    deleteUploadsFolder();
     app.quit();
   }
 });
@@ -102,7 +329,25 @@ app.on("activate", () => {
   }
 });
 
-app.on("before-quit", () => {
-  stopNestServer();
-  deleteUploadsFolder();
+app.on("before-quit", (e) => {
+  if (isQuitting) return;
+  e.preventDefault();
+
+  const lang = app.getLocale().startsWith("es") ? "es" : "en";
+  const dialogText = quitTranslations[lang];
+
+  const buttonIndex = dialog.showMessageBoxSync(BrowserWindow.getAllWindows()[0], {
+    type: "question",
+    title: dialogText.title,
+    message: dialogText.message,
+    buttons: dialogText.buttons,
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (buttonIndex === 0) {
+    isQuitting = true;
+    deleteUploadsFolder();
+    app.quit();
+  }
 });

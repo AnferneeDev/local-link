@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 import translations from "../languages.json";
 import { LanguageKey, SharedFile, SharedText, SharedItem } from "../lib/types";
 import { socket } from "../lib/socket";
-import { getItems, uploadFiles, sendText, downloadFile, getIP, downloadAllFiles } from "../lib/api";
+// We no longer import getIP, because it's handled by window.api or a new endpoint
+import { getItems, uploadFiles, sendText, downloadFile, downloadAllFiles } from "../lib/api";
 import { t as tHelper, getStatusMessage as getStatusHelper, tButton } from "../lib/translations";
 
 interface AppContextType {
@@ -15,8 +16,9 @@ interface AppContextType {
   statusFilename: string;
   text: string;
   copiedId: string | null;
-  selectedFiles: File[]; // <-- CHANGED
+  selectedFiles: File[];
   localIP: string | null;
+  qrCodeDataUrl: string | null; // <-- ADDED
   fileInputRef: React.RefObject<HTMLInputElement>;
   downloadingFileId: string | null;
   // State Setters
@@ -30,7 +32,7 @@ interface AppContextType {
   handleCopyClick: (text: string, id: string) => void;
   handleChooseFileClick: () => void;
   handleDownloadClick: (file: SharedFile) => void;
-  handleDownloadAllClick: () => Promise<void>; // <-- ADDED
+  handleDownloadAllClick: () => Promise<void>;
   // Helpers
   t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => string;
   tButton: (key: keyof (typeof translations)["en"]["button"]) => string;
@@ -51,7 +53,7 @@ const useStatusReset = (setStatusType: React.Dispatch<React.SetStateAction<AppCo
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // <-- CHANGED
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [files, setFiles] = useState<SharedFile[]>([]);
   const [texts, setTexts] = useState<SharedText[]>([]);
   const [lang, setLang] = useState<LanguageKey>(getInitialLang());
@@ -62,15 +64,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"file" | "text">("file");
   const [localIP, setLocalIP] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null); // <-- ADDED
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   useStatusReset(setStatusType, statusType);
 
   useEffect(() => {
-    // ... (fetchInitialData is unchanged) ...
+    // --- THIS IS THE UPDATED DUAL-MODE FUNCTION ---
     const fetchInitialData = async () => {
       try {
-        const initialItems: SharedItem[] = await getItems();
+        let initialItems: SharedItem[] = [];
+
+        if (window.api) {
+          // --- 1. ELECTRON (HOST) MODE ---
+          console.log("Running in Electron (host) mode");
+          const appData = await window.api.getAppData();
+          setLocalIP(appData.ip);
+          setQrCodeDataUrl(appData.qrCodeDataUrl);
+          // Get items (API_BASE will be "http://localhost:3000")
+          initialItems = await getItems();
+        } else {
+          // --- 2. BROWSER (CLIENT) MODE ---
+          console.log("Running in Browser (client) mode");
+          // Get IP/QR from new endpoint (API_BASE will be "")
+          const appDataResponse = await fetch("/app-data");
+          const appData = await appDataResponse.json();
+          setLocalIP(appData.ip);
+          setQrCodeDataUrl(appData.qrCodeDataUrl);
+          // Get items (API_BASE will be "")
+          initialItems = await getItems();
+        }
+
+        // --- THIS IS THE MERGED LOGIC ---
+        // (This logic is now run in both cases)
         setFiles((prevFiles) => {
           const newFiles = initialItems.filter((item) => item.type === "file") as SharedFile[];
           const existingIds = new Set(prevFiles.map((f) => f.id));
@@ -83,9 +109,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const merged = [...prevTexts, ...newTexts.filter((t) => !existingIds.has(t.id))];
           return merged;
         });
-
-        const ipData = await getIP();
-        if (ipData.ip) setLocalIP(ipData.ip);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       }
@@ -110,24 +133,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // --- UPDATED to handle multiple files ---
+  // --- All other handlers (handleFileChange, handleUploadClick, etc.) are unchanged ---
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setSelectedFiles(Array.from(event.target.files)); // Store as array
+      setSelectedFiles(Array.from(event.target.files));
       setStatusType("selected");
       const names = Array.from(event.target.files).map((f) => f.name);
       setStatusFilename(names.length === 1 ? names[0] : `${names.length} files`);
     }
   };
 
-  // --- UPDATED to handle multiple files ---
   const handleUploadClick = async () => {
     if (selectedFiles.length === 0) return;
     setStatusType("uploading-file");
     try {
-      await uploadFiles(selectedFiles); // Use plural function
+      await uploadFiles(selectedFiles);
       setStatusType("success-file");
-      setSelectedFiles([]); // Clear array
+      setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -136,7 +159,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleTextSendClick = async () => {
-    // (This handler is unchanged)
     if (!text.trim()) return;
     setStatusType("uploading-text");
     try {
@@ -150,7 +172,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleCopyClick = (textToCopy: string, id: string) => {
-    // (This handler is unchanged)
     if (navigator.clipboard) {
       navigator.clipboard.writeText(textToCopy).then(() => {
         setCopiedId(id);
@@ -181,7 +202,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleDownloadClick = (file: SharedFile) => {
-    // (This handler is unchanged)
     setDownloadingFileId(file.id);
     downloadFile(file.filename);
     setTimeout(() => {
@@ -189,9 +209,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 3000);
   };
 
-  // --- ADDED: New handler for "Download All" ---
   const handleDownloadAllClick = async () => {
-    // Calls the new API function
     await downloadAllFiles(files, setDownloadingFileId);
   };
 
@@ -207,8 +225,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     text,
     setText,
     copiedId,
-    selectedFiles, // <-- CHANGED
+    selectedFiles,
     localIP,
+    qrCodeDataUrl, // <-- ADDED
     fileInputRef,
     downloadingFileId,
     handleFileChange,
@@ -217,7 +236,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     handleCopyClick,
     handleChooseFileClick,
     handleDownloadClick,
-    handleDownloadAllClick, // <-- ADDED
+    handleDownloadAllClick,
     t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => tHelper(lang, key),
     tButton: (key: keyof (typeof translations)["en"]["button"]) => tButton(lang, key),
     getStatusMessage: () => getStatusHelper(lang, statusType, statusFilename),
