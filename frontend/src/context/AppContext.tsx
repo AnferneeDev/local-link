@@ -21,13 +21,14 @@ interface AppContextType {
   qrCodeDataUrl: string | null;
   fileInputRef: React.RefObject<HTMLInputElement>;
   downloadingFileId: string | null;
-  uploadProgress: number | null; // <-- 1. ADDED UPLOAD PROGRESS
+  uploadProgress: number | null;
   // State Setters
   setLang: (lang: LanguageKey) => void;
   setMode: (mode: "file" | "text") => void;
   setText: (text: string) => void;
   // Handlers
   handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleDrop: (event: React.DragEvent<HTMLDivElement>) => void; // <-- ADDED
   handleUploadClick: () => Promise<void>;
   handleTextSendClick: () => Promise<void>;
   handleCopyClick: (text: string, id: string) => void;
@@ -67,39 +68,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [localIP, setLocalIP] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
-  // --- 2. ADDED PROGRESS STATE ---
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useStatusReset(setStatusType, statusType);
 
   useEffect(() => {
-    // --- THIS IS THE UPDATED DUAL-MODE FUNCTION ---
+    // --- (fetchInitialData is unchanged) ---
     const fetchInitialData = async () => {
       try {
         let initialItems: SharedItem[] = [];
 
         if (window.api) {
-          // --- 1. ELECTRON (HOST) MODE ---
           console.log("Running in Electron (host) mode");
           const appData = await window.api.getAppData();
           setLocalIP(appData.ip);
           setQrCodeDataUrl(appData.qrCodeDataUrl);
-          // Get items (API_BASE will be "http://localhost:3000")
           initialItems = await getItems();
         } else {
-          // --- 2. BROWSER (CLIENT) MODE ---
           console.log("Running in Browser (client) mode");
-          // Get IP/QR from new endpoint (API_BASE will be "")
           const appDataResponse = await fetch("/app-data");
           const appData = await appDataResponse.json();
           setLocalIP(appData.ip);
           setQrCodeDataUrl(appData.qrCodeDataUrl);
-          // Get items (API_BASE will be "")
           initialItems = await getItems();
         }
 
-        // --- THIS IS THE MERGED LOGIC ---
-        // (This logic is now run in both cases)
         setFiles((prevFiles) => {
           const newFiles = initialItems.filter((item) => item.type === "file") as SharedFile[];
           const existingIds = new Set(prevFiles.map((f) => f.id));
@@ -118,7 +111,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     fetchInitialData();
 
-    // ... (socket logic is unchanged) ...
+    // --- (socket logic is unchanged) ---
     socket.on("item-added", (newItem: SharedItem) => {
       if (newItem.type === "file") {
         setFiles((prev) => (prev.find((f) => f.id === newItem.id) ? prev : [...prev, newItem]));
@@ -137,7 +130,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // (This handler is unchanged)
     if (event.target.files && event.target.files.length > 0) {
       setSelectedFiles(Array.from(event.target.files));
       setStatusType("selected");
@@ -146,20 +138,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- 3. UPDATED UPLOAD HANDLER ---
+  // --- ADDED: handleDrop function ---
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+
+    if (files && files.length > 0) {
+      setSelectedFiles(Array.from(files));
+      setStatusType("selected");
+      const names = Array.from(files).map((f) => f.name);
+      setStatusFilename(names.length === 1 ? names[0] : `${names.length} files`);
+    }
+  };
+  // --- END ---
+
+  // --- (handleUploadClick is unchanged) ---
   const handleUploadClick = async () => {
     if (selectedFiles.length === 0) return;
-
     setStatusType("uploading-file");
-    setUploadProgress(0); // Start progress at 0
-
-    // This is our new callback function
+    setUploadProgress(0);
     const onProgress = (progress: number) => {
       setUploadProgress(progress);
     };
-
     try {
-      await uploadFiles(selectedFiles, onProgress); // Pass the callback
+      await uploadFiles(selectedFiles, onProgress);
       setStatusType("success-file");
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -167,12 +169,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error uploading file:", error);
       setStatusType("fail-file");
     } finally {
-      setUploadProgress(null); // Clear progress on success or fail
+      setUploadProgress(null);
     }
   };
 
+  // --- (handleTextSendClick is unchanged) ---
   const handleTextSendClick = async () => {
-    // (This handler is unchanged)
     if (!text.trim()) return;
     setStatusType("uploading-text");
     try {
@@ -185,8 +187,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // --- (handleCopyClick is unchanged) ---
   const handleCopyClick = (textToCopy: string, id: string) => {
-    // (This handler is unchanged)
     if (navigator.clipboard) {
       navigator.clipboard.writeText(textToCopy).then(() => {
         setCopiedId(id);
@@ -213,12 +215,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleChooseFileClick = () => {
-    // (This handler is unchanged)
     fileInputRef.current?.click();
   };
 
+  // --- (handleDownloadClick is unchanged) ---
   const handleDownloadClick = (file: SharedFile) => {
-    // (This handler is unchanged)
     setDownloadingFileId(file.id);
     downloadFile(file.filename);
     setTimeout(() => {
@@ -226,12 +227,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 3000);
   };
 
+  // --- (handleDownloadAllClick is unchanged) ---
   const handleDownloadAllClick = async () => {
-    // (This handler is unchanged)
     await downloadAllFiles(files, setDownloadingFileId);
   };
 
-  // --- 4. EXPOSE NEW STATE ---
+  // --- EXPOSE NEW HANDLER ---
   const value = {
     files,
     texts,
@@ -249,8 +250,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     qrCodeDataUrl,
     fileInputRef,
     downloadingFileId,
-    uploadProgress, // <-- Expose it
+    uploadProgress,
     handleFileChange,
+    handleDrop, // <-- EXPOSED
     handleUploadClick,
     handleTextSendClick,
     handleCopyClick,

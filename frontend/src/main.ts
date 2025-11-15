@@ -295,7 +295,7 @@ const createWindow = () => {
 app.on("session-created", (session) => {
   session.webRequest.onHeadersReceived((details, callback) => {
     const baseCSP = ["default-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:"];
-    const connectSrc = ["'self'", "http://localhost:3000", "ws://localhost:3000"];
+    const connectSrc = ["'self'", "http://localhost:5005", "ws://localhost:5005"];
     if (isDev) {
       baseCSP.push("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
       connectSrc.push(MAIN_WINDOW_VITE_DEV_SERVER_URL.replace(/\/$/, ""));

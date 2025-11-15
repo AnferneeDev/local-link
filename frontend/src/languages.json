@@ -7,10 +7,12 @@
     "dragDrop": "Drag & drop or click to select file",
     "toggleFile": "File",
     "toggleText": "Text",
+    "textPlaceholder": "write here shit",
     "status": {
       "initial": "",
       "selected": "{{filename}} selected.",
       "uploading": "Uploading...",
+      "processing": "Processing...",
       "success": "✅ Item shared!",
       "fail": "❌ Failed to share. Check the console."
     },
@@ -40,10 +42,12 @@
     "dragDrop": "Arrastra o haz clic para seleccionar",
     "toggleFile": "Archivo",
     "toggleText": "Texto",
+    "textPlaceholder": "escribe tu vaina aquí",
     "status": {
       "initial": "",
       "selected": "{{filename}} seleccionado.",
       "uploading": "Subiendo...",
+      "processing": "Procesando...",
       "success": "✅ ¡Item compartido!",
       "fail": "❌ Error al compartir. Revisa la consola."
     },

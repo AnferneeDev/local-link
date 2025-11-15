@@ -9,12 +9,9 @@ import { Progress } from "@/components/ui/progress"; // Import Progress
 
 // --- Button text helpers ---
 const FileButtonText = () => {
-  // --- FIX: Get uploadProgress ---
   const { lang, statusType, uploadProgress } = useAppContext();
 
-  // --- Show progress if uploading ---
   if (statusType === "uploading-file") {
-    // --- FIX: Show percentage in button ---
     const progressText = uploadProgress ? `Uploading... ${uploadProgress}%` : tButton(lang, "uploading");
     return (
       <>
@@ -22,7 +19,6 @@ const FileButtonText = () => {
       </>
     );
   }
-  // --- End progress ---
 
   if (statusType === "success-file") return tButton(lang, "success");
   if (statusType === "fail-file") return tButton(lang, "fail");
@@ -53,20 +49,30 @@ const FileUpload = () => {
     t,
     handleFileChange,
     handleChooseFileClick,
+    handleDrop, // <-- GET DROP HANDLER
     fileInputRef,
     handleUploadClick,
-    selectedFiles, // Use selectedFiles
+    selectedFiles,
     statusType,
-    uploadProgress, // <-- FIX: Get progress
+    uploadProgress,
   } = useAppContext();
 
-  // --- FIX: Get uploading status ---
   const isUploadingFile = statusType === "uploading-file";
+
+  // --- ADDED: Drag over handler ---
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); // This is necessary to allow dropping
+  };
+  // --- END ---
 
   return (
     <div className="space-y-3">
       <div
         onClick={handleChooseFileClick}
+        // --- ADDED: Drag and drop event handlers ---
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        // --- END ---
         className="flex items-center justify-center w-full h-24 border-2 border-slate-300 dark:border-slate-700 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <div className="text-center">
@@ -91,14 +97,12 @@ const FileUpload = () => {
 
       <Input id="file-upload" type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
 
-      {/* --- FIX: ADDED THE PROGRESS BAR --- */}
       {isUploadingFile && uploadProgress !== null && (
         <div className="space-y-1 text-center pt-1">
           <Progress value={uploadProgress} className="w-full" />
-          <p className="text-xs text-slate-500">{`${uploadProgress}% ${uploadProgress === 100 ? "Processing..." : ""}`}</p>
+          <p className="text-xs text-slate-500">{`${uploadProgress}% ${uploadProgress === 100 ? t("status.processing") : ""}`}</p>
         </div>
       )}
-      {/* --- END OF PROGRESS BAR --- */}
 
       <Button
         className="w-full py-5 rounded-2xl font-semibold text-lg bg-linear-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 transition-all duration-300 shadow-md hover:shadow-lg"
@@ -111,21 +115,13 @@ const FileUpload = () => {
   );
 };
 
-// --- TextUpload Component ---
+// --- (TextUpload component is unchanged) ---
 const TextUpload = () => {
   const { lang, t, text, setText, handleTextSendClick, statusType } = useAppContext();
 
   return (
     <div className="space-y-3">
-      <Textarea
-        id="text-input"
-        // --- FIX: Use translation key ---
-        placeholder={t("textPlaceholder")}
-        value={text}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
-        className="resize-none h-24 overflow-y-auto"
-        rows={3}
-      />
+      <Textarea id="text-input" placeholder={t("textPlaceholder")} value={text} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)} className="resize-none h-24 overflow-y-auto" rows={3} />
       <Button
         className="w-full py-5 rounded-2xl font-semibold text-lg bg-linear-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 transition-all duration-300 shadow-md hover:shadow-lg"
         onClick={handleTextSendClick}
@@ -137,7 +133,7 @@ const TextUpload = () => {
   );
 };
 
-// --- Main UploadManager Component (No Change) ---
+// --- (UploadManager component is unchanged) ---
 export const UploadManager = () => {
   const { lang, t, mode, setMode, getStatusMessage, statusType } = useAppContext();
   const statusMsg = getStatusMessage();
@@ -170,7 +166,6 @@ export const UploadManager = () => {
 
       {/* --- Status Message --- */}
       <div className="h-5 text-center">
-        {/* --- FIX: Show status message --- */}
         <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{statusMsg}</p>
       </div>
     </>
