@@ -58,7 +58,7 @@ It allows you to quickly transfer content from your computer to any other device
 
 ## Demo
 
-![App Demo](assets/images/demo.gif)
+![App Demo](frontend/assets/images/demo.gif)
 
 ---
 
