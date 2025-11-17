@@ -1,21 +1,17 @@
 import { app, BrowserWindow, shell, dialog, ipcMain, session, globalShortcut } from "electron";
 import path from "node:path";
 import fs from "node:fs";
-import { networkInterfaces } from "node:os"; // For getting IP
-import express from "express"; // For the server
-import cors from "cors"; // For CORS
-import { createServer } from "http"; // For the server
-import { Server } from "socket.io"; // For websockets
-import multer from "multer"; // For file uploads
-import * as qrcode from "qrcode"; // For QR code
+import { networkInterfaces } from "node:os";
+import express from "express";
+import cors from "cors";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import multer from "multer";
+import * as qrcode from "qrcode";
 import started from "electron-squirrel-startup";
-
-// App: Local Link
-// Author: Anfernee
 
 const isDev = !!MAIN_WINDOW_VITE_DEV_SERVER_URL;
 
-// --- Types (Copied from your NestJS service) ---
 export interface SharedFile {
   id: string;
   type: "file";
@@ -29,10 +25,9 @@ export interface SharedText {
 }
 export type SharedItem = SharedFile | SharedText;
 
-// --- In-Memory "Database" ---
 let items: SharedItem[] = [];
 let io: Server | null = null;
-let dynamicPort = 0; // <-- Will store the chosen port
+let dynamicPort = 0;
 
 // --- Pathing (uploads folder) ---
 const uploadsPath = isDev ? path.join(app.getAppPath(), "../uploads") : path.join(path.dirname(app.getPath("exe")), "uploads");
