@@ -3,25 +3,16 @@ import { Label } from "@/components/ui/label";
 import { Download, FileText, Loader2, Package } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { API_BASE } from "../lib/socket";
-// We don't need to import downloadFile here, it's handled by the context
 
 export const SharedFileList = () => {
-  const {
-    lang,
-    t,
-    files,
-    handleDownloadClick,
-    downloadingFileId,
-    handleDownloadAllClick,
-    tButton, // <-- Make sure tButton is provided by your context
-  } = useAppContext();
+  const { lang, t, files, handleDownloadClick, downloadingFileId, handleDownloadAllClick, tButton } = useAppContext();
 
   return (
     <div className="space-y-3">
       {/* --- "DOWNLOAD ALL" BUTTON --- */}
       <div className="flex justify-between items-center mb-2">
         <Label className="font-medium text-slate-700 dark:text-slate-300">{t("available")}</Label>
-        {files.length > 1 && ( // Only show if there's more than one file
+        {files.length > 1 && (
           <Button variant="outline" size="sm" className="h-8" onClick={handleDownloadAllClick}>
             <Package className="w-3 h-3 mr-1.5" />
             {/* --- FIX: "Download All" is now translated --- */}
@@ -45,9 +36,8 @@ export const SharedFileList = () => {
 
                 {/* --- FILENAME PREVIEW LINK --- */}
                 <a
-                  // --- FIX: The href now points to /uploads/ ---
                   href={`${API_BASE}/uploads/${item.filename}`}
-                  target="_blank" // Open in new tab
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[180px] md:max-w-[220px] hover:underline"
                   title={`Click to preview ${item.filename}`}

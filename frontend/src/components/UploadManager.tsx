@@ -4,8 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { File, Send, Type, Loader2, FileText, UploadCloud, Files, UploadCloudIcon } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
-import { tButton } from "../lib/translations"; // Import tButton
-import { Progress } from "@/components/ui/progress"; // Import Progress
+import { tButton } from "../lib/translations";
+import { Progress } from "@/components/ui/progress";
 
 // --- Button text helpers ---
 const FileButtonText = () => {
@@ -49,35 +49,21 @@ const TextButtonText = () => {
 };
 
 const FileUpload = () => {
-  const {
-    lang,
-    t,
-    handleFileChange,
-    handleChooseFileClick,
-    handleDrop, // <-- GET DROP HANDLER
-    fileInputRef,
-    handleUploadClick,
-    selectedFiles,
-    statusType,
-    uploadProgress,
-  } = useAppContext();
+  const { lang, t, handleFileChange, handleChooseFileClick, handleDrop, fileInputRef, handleUploadClick, selectedFiles, statusType, uploadProgress } = useAppContext();
 
   const isUploadingFile = statusType === "uploading-file";
 
-  // --- ADDED: Drag over handler ---
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // This is necessary to allow dropping
+    e.preventDefault();
   };
-  // --- END ---
+  //
 
   return (
     <div className="space-y-3">
       <div
         onClick={handleChooseFileClick}
-        // --- ADDED: Drag and drop event handlers ---
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        // --- END ---
         className="flex items-center justify-center w-full h-24 border-2 border-slate-300 dark:border-slate-700 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <div className="text-center">
@@ -120,7 +106,6 @@ const FileUpload = () => {
   );
 };
 
-// --- (TextUpload component is unchanged) ---
 const TextUpload = () => {
   const { lang, t, text, setText, handleTextSendClick, statusType } = useAppContext();
 
@@ -138,7 +123,6 @@ const TextUpload = () => {
   );
 };
 
-// --- (UploadManager component is unchanged) ---
 export const UploadManager = () => {
   const { lang, t, mode, setMode, getStatusMessage, statusType } = useAppContext();
   const statusMsg = getStatusMessage();

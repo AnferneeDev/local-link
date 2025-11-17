@@ -1,13 +1,11 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import translations from "../languages.json";
 import { LanguageKey, SharedFile, SharedText, SharedItem } from "../lib/types";
-// --- FIX: Import initializer, not socket ---
 import { initializeApi } from "../lib/socket";
 import { getItems, uploadFiles, sendText, downloadFile, downloadAllFiles } from "../lib/api";
 import { t as tHelper, getStatusMessage as getStatusHelper, tButton } from "../lib/translations";
 
 interface AppContextType {
-  // State
   files: SharedFile[];
   texts: SharedText[];
   lang: LanguageKey;
@@ -22,11 +20,11 @@ interface AppContextType {
   fileInputRef: React.RefObject<HTMLInputElement>;
   downloadingFileId: string | null;
   uploadProgress: number | null;
-  // State Setters
+
   setLang: (lang: LanguageKey) => void;
   setMode: (mode: "file" | "text") => void;
   setText: (text: string) => void;
-  // Handlers
+
   handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleDrop: (event: React.DragEvent<HTMLDivElement>) => void; // <-- ADDED
   handleUploadClick: () => Promise<void>;
@@ -35,14 +33,13 @@ interface AppContextType {
   handleChooseFileClick: () => void;
   handleDownloadClick: (file: SharedFile) => void;
   handleDownloadAllClick: () => Promise<void>;
-  // Helpers
+
   t: (key: Exclude<keyof (typeof translations)["en"], "status" | "button">) => string;
   tButton: (key: keyof (typeof translations)["en"]["button"]) => string;
   getStatusMessage: () => string;
 }
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// --- (useStatusReset helper is unchanged) ---
 const useStatusReset = (setStatusType: React.Dispatch<React.SetStateAction<AppContextType["statusType"]>>, currentStatus: AppContextType["statusType"]) => {
   useEffect(() => {
     if (currentStatus.startsWith("success-") || currentStatus.startsWith("fail-")) {
@@ -96,7 +93,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setLocalIP(appData.ip);
         setQrCodeDataUrl(appData.qrCodeDataUrl);
 
-        // --- 4. Now we can call getItems() ---
         initialItems = await getItems();
 
         setFiles((prevFiles) => {
@@ -112,7 +108,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           return merged;
         });
 
-        // --- 5. SET UP SOCKET LISTENERS ---
         socket.on("item-added", (newItem: SharedItem) => {
           if (newItem.type === "file") {
             setFiles((prev) => (prev.find((f) => f.id === newItem.id) ? prev : [...prev, newItem]));
@@ -125,7 +120,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           setTexts([]);
         });
 
-        // Return cleanup function
         return () => {
           socket.off("item-added");
           socket.off("items-cleared");
@@ -147,7 +141,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- ADDED: handleDrop function ---
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const files = event.dataTransfer.files;
@@ -159,9 +152,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setStatusFilename(names.length === 1 ? names[0] : `${names.length} files`);
     }
   };
-  // --- END ---
 
-  // --- (handleUploadClick is unchanged) ---
   const handleUploadClick = async () => {
     if (selectedFiles.length === 0) return;
     setStatusType("uploading-file");
@@ -182,7 +173,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- (handleTextSendClick is unchanged) ---
   const handleTextSendClick = async () => {
     if (!text.trim()) return;
     setStatusType("uploading-text");
@@ -196,7 +186,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- (handleCopyClick is unchanged) ---
   const handleCopyClick = (textToCopy: string, id: string) => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(textToCopy).then(() => {
@@ -227,7 +216,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     fileInputRef.current?.click();
   };
 
-  // --- (handleDownloadClick is unchanged) ---
   const handleDownloadClick = (file: SharedFile) => {
     setDownloadingFileId(file.id);
     downloadFile(file.filename);
@@ -236,12 +224,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 3000);
   };
 
-  // --- (handleDownloadAllClick is unchanged) ---
   const handleDownloadAllClick = async () => {
     await downloadAllFiles(files, setDownloadingFileId);
   };
 
-  // --- EXPOSE NEW HANDLER ---
   const value = {
     files,
     texts,
@@ -261,7 +247,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     downloadingFileId,
     uploadProgress,
     handleFileChange,
-    handleDrop, // <-- EXPOSED
+    handleDrop,
     handleUploadClick,
     handleTextSendClick,
     handleCopyClick,
@@ -276,7 +262,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-// --- (getInitialLang and useAppContext are unchanged) ---
 const getInitialLang = (): LanguageKey => {
   const userLang = navigator.language.toLowerCase();
   return userLang.startsWith("es") ? "es" : "en";

@@ -2,22 +2,14 @@ import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAppContext } from "../context/AppContext";
 import { useState } from "react";
-// import { QRCodeCanvas } from "qrcode.react"; // No longer needed, we get data URL
 import { QrCode, ArrowDown, Globe } from "lucide-react";
 
 export const AppHeader = () => {
-  // --- FIX ---
-  // localIP is now the full URL (e.g., "http://192.168.1.1:3000")
-  // qrCodeDataUrl is the pre-generated QR code
   const { lang, setLang, t, localIP, qrCodeDataUrl } = useAppContext();
-  // --- END FIX ---
 
   const [showQR, setShowQR] = useState(false);
 
-  // --- FIX ---
-  // We just use localIP directly.
   const url = localIP;
-  // --- END FIX ---
 
   return (
     <CardHeader className="text-center space-y-2 pb-2">
@@ -53,15 +45,15 @@ export const AppHeader = () => {
             </Button>
           </div>
 
-          {/* --- FIX: Use qrCodeDataUrl from context --- */}
+          {/* QR Code */}
           {showQR && qrCodeDataUrl && (
             <div className="flex items-center justify-center pt-4">
               <img src={qrCodeDataUrl} alt="QR Code" className="rounded-lg w-[128px] h-[128px]" />
             </div>
           )}
-          {/* --- END FIX --- */}
+          {}
         </div>
       )}
-    </CardHeader> // <-- FIX: Corrected typo (was CardHeaer)
+    </CardHeader>
   );
 };

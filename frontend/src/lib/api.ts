@@ -1,9 +1,6 @@
 import { API_BASE } from "./socket";
-import { SharedFile } from "./types"; // Import SharedFile type
+import { SharedFile } from "./types";
 
-/**
- * Uploads one or more files to the server, with progress tracking.
- */
 export const uploadFiles = (selectedFiles: File[], onProgress: (progress: number) => void): Promise<any> => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -13,14 +10,12 @@ export const uploadFiles = (selectedFiles: File[], onProgress: (progress: number
 
     const xhr = new XMLHttpRequest();
 
-    // --- This is the new progress tracking ---
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percentComplete = Math.round((event.loaded / event.total) * 100);
         onProgress(percentComplete);
       }
     };
-    // --- End of progress tracking ---
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -80,10 +75,10 @@ export const downloadFile = (filename: string) => {
  */
 export const downloadAllFiles = async (files: SharedFile[], setDownloadingFileId: (id: string | null) => void) => {
   for (const file of files) {
-    setDownloadingFileId(file.id); // Show spinner
+    setDownloadingFileId(file.id);
     downloadFile(file.filename);
-    // Wait 500ms between each download to avoid pop-up blockers
+
     await new Promise((resolve) => setTimeout(resolve, 500));
-    setDownloadingFileId(null); // Hide spinner
+    setDownloadingFileId(null);
   }
 };

@@ -29,10 +29,8 @@ let items: SharedItem[] = [];
 let io: Server | null = null;
 let dynamicPort = 0;
 
-// --- Pathing (uploads folder) ---
 const uploadsPath = isDev ? path.join(app.getAppPath(), "../uploads") : path.join(path.dirname(app.getPath("exe")), "uploads");
 
-// --- Single Instance Lock (Already present and correct) ---
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -149,16 +147,15 @@ function startLocalServer(): Promise<number> {
       res.json(getAllItems());
     });
 
-    // --- FIX: Use dynamic port in /app-data ---
     serverApp.get("/app-data", async (req, res) => {
       const ip = getLocalIP();
       if (!ip) {
         return res.status(500).json({ error: "No IP found" });
       }
       try {
-        const url = `http://${ip}:${dynamicPort}`; // Use global port
+        const url = `http://${ip}:${dynamicPort}`;
         const qrCodeDataUrl = await qrcode.toDataURL(url);
-        res.json({ ip: url, qrCodeDataUrl, port: dynamicPort }); // Send port
+        res.json({ ip: url, qrCodeDataUrl, port: dynamicPort });
       } catch (err) {
         res.status(500).json({ error: "Failed to generate QR code" });
       }
@@ -207,7 +204,6 @@ function startLocalServer(): Promise<number> {
       });
     }
 
-    // --- FIX: Start Server on Port 0 ---
     httpServer.listen(0, "0.0.0.0", () => {
       const address = httpServer.address();
       if (address && typeof address === "object") {
@@ -221,7 +217,6 @@ function startLocalServer(): Promise<number> {
   });
 }
 
-// --- FIX: IPC Handler sends dynamic port ---
 ipcMain.handle("get-app-data", async () => {
   const ip = getLocalIP();
   if (!ip) {
@@ -232,7 +227,6 @@ ipcMain.handle("get-app-data", async () => {
   return { ip: url, qrCodeDataUrl, port: dynamicPort }; // Send port
 });
 
-// --- File Deletion Logic ---
 function deleteUploadsFolder() {
   console.log(`Attempting to delete uploads folder at: ${uploadsPath}`);
   items = [];
@@ -274,7 +268,6 @@ const createWindow = () => {
     },
   });
 
-  // --- REMOVE MENU BAR ---
   mainWindow.setMenu(null);
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -290,15 +283,10 @@ const createWindow = () => {
   }
 };
 
-// --- FIX: CSP uses dynamic port ---
 app.on("session-created", (session) => {
   session.webRequest.onHeadersReceived((details, callback) => {
     const baseCSP = ["default-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:"];
-    const connectSrc = [
-      "'self'",
-      `http://localhost:${dynamicPort}`, // Use global port
-      `ws://localhost:${dynamicPort}`, // Use global port
-    ];
+    const connectSrc = ["'self'", `http://localhost:${dynamicPort}`, `ws://localhost:${dynamicPort}`];
     if (isDev) {
       baseCSP.push("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
       connectSrc.push(MAIN_WINDOW_VITE_DEV_SERVER_URL.replace(/\/$/, ""));
@@ -315,12 +303,10 @@ app.on("session-created", (session) => {
   });
 });
 
-// --- FIX: App Ready is async ---
 app.on("ready", async () => {
-  await startLocalServer(); // Wait for server to start
+  await startLocalServer();
   createWindow();
 
-  // --- ADD CUSTOM DEVTOOLS SHORTCUT ---
   globalShortcut.register("CommandOrControl+Shift+Alt+D", () => {
     BrowserWindow.getFocusedWindow()?.webContents.toggleDevTools();
   });
@@ -331,9 +317,7 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
-
-// --- UNREGISTER SHORTCUT ON QUIT ---
-app.on("will-quit", () => {
+-app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 
