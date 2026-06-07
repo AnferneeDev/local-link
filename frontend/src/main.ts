@@ -204,16 +204,31 @@ function startLocalServer(): Promise<number> {
       });
     }
 
-    httpServer.listen(0, "0.0.0.0", () => {
-      const address = httpServer.address();
-      if (address && typeof address === "object") {
-        dynamicPort = address.port; // Store the chosen port
-        console.log(`Local sharing server started on port ${dynamicPort}`);
-        resolve(dynamicPort); // Resolve the promise with the port
-      } else {
-        reject(new Error("Failed to start server"));
-      }
-    });
+    const startServerWithRetry = (port: number) => {
+      httpServer.once('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          console.log(`Port ${port} in use, trying ${port + 1}`);
+          startServerWithRetry(port + 1);
+        } else {
+          reject(err);
+        }
+      });
+      
+      httpServer.once('listening', () => {
+        const address = httpServer.address();
+        if (address && typeof address === "object") {
+          dynamicPort = address.port;
+          console.log(`Local sharing server started on port ${dynamicPort}`);
+          resolve(dynamicPort);
+        } else {
+          reject(new Error("Failed to start server"));
+        }
+      });
+
+      httpServer.listen(port, "0.0.0.0");
+    };
+
+    startServerWithRetry(5000);
   });
 }
 
@@ -317,7 +332,7 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
--app.on("will-quit", () => {
+app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 
